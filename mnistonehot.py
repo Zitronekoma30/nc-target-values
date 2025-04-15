@@ -81,6 +81,8 @@ train_counter = []
 test_losses = []
 test_counter = [i*len(train_loader)*batch_size_train for i in range(n_epochs+1)]
 def one_hot_nll_loss(output, oh_target):
+    # basically this https://pytorch.org/docs/stable/generated/torch.nn.NLLLoss.html
+    # since one hot vectors are not supported in the default implementation
     log_probs = F.log_softmax(output, dim=-1)
     loss = -(oh_target * log_probs).sum(dim=-1).mean()
 
