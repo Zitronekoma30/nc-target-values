@@ -86,6 +86,19 @@ def one_hot_nll_loss(output, oh_target):
 
     return loss
 
+def generate_target(target):
+    one_hot = F.one_hot(target, num_classes=10)
+    new_target = one_hot.float()
+    new_target[new_target == 1] = 0.8
+    new_target[new_target == 0] = 0.2
+
+    return new_target
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"CUDA IS AVAILABLE: {torch.cuda.is_available()}")
+
+network = network.to(device)
+
 def train(epoch):
     network.eval()
     with torch.no_grad():
@@ -94,9 +107,11 @@ def train(epoch):
             print(one_hot_labels[0])
     network.train()
     for batch_idx, (data, target) in enumerate(train_loader):
+        data = data.to(device)
+        new_target = generate_target(target).to(device)
         optimizer.zero_grad()
         output = network(data)
-        loss = one_hot_nll_loss(output, F.one_hot(target, num_classes=10))
+        loss = one_hot_nll_loss(output, new_target)
         loss.backward()
         optimizer.step()
 
@@ -104,8 +119,7 @@ def train(epoch):
             print(f"Epoch: {epoch} [{batch_idx*len(data)}/{len(train_loader)*batch_size_train} Loss: {loss.item()}]")
 
             train_losses.append(loss.item())
-            train_counter.append(
-            (batch_idx*64) + ((epoch-1)*batch_size_train))
+            train_counter.append((epoch - 1) * len(train_loader.dataset) + batch_idx * len(data))
 
             torch.save(network.state_dict(), './results/model.pth')
             torch.save(optimizer.state_dict(), './results/optimizer.pth')
@@ -116,10 +130,12 @@ def test():
     correct = 0
     with torch.no_grad():
         for data, target in test_loader:
+            data = data.to(device)
             output = network(data)
-            test_loss += F.nll_loss(output, target, size_average=False).item()
+            # test_loss += F.nll_loss(output, target, size_average=False).item()
+            test_loss += one_hot_nll_loss(output, generate_target(target).to(device))
             pred = output.data.max(1, keepdim=True)[1]
-            correct += pred.eq(target.data.view_as(pred)).sum()
+            correct += pred.eq(target.to(device).data.view_as(pred)).sum()
     test_loss /= len(test_loader.dataset)
     test_losses.append(test_loss)
     print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
@@ -132,11 +148,18 @@ for epoch in range(1, n_epochs + 1):
   test()
 
 fig = plt.figure()
-plt.plot(train_counter, train_losses, color='blue')
-plt.scatter(test_counter, test_losses, color='red')
+plt.plot(
+    [x.item() if torch.is_tensor(x) else x for x in train_counter],
+    [y.item() if torch.is_tensor(y) else y for y in train_losses],
+    color='blue'
+)
+plt.scatter(
+    [x.item() if torch.is_tensor(x) else x for x in test_counter],
+    [y.item() if torch.is_tensor(y) else y for y in test_losses],
+    color='red'
+)
 plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
 plt.xlabel('number of training examples seen')
 plt.ylabel('negative log likelihood loss')
 fig.show()
-
 input()
