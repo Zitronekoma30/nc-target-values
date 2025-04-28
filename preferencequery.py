@@ -69,7 +69,7 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return F.log_softmax(x)
+        return x
 
 # training
 network = Net()
@@ -133,7 +133,8 @@ def test():
             data = data.to(device)
             output = network(data)
             # test_loss += F.nll_loss(output, target, size_average=False).item()
-            test_loss += one_hot_nll_loss(output, generate_target(target).to(device))
+            loss = one_hot_nll_loss(output, generate_target(target).to(device))
+            test_loss += loss * data.size(0)
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.to(device).data.view_as(pred)).sum()
     test_loss /= len(test_loader.dataset)
