@@ -99,12 +99,23 @@ print(f"CUDA IS AVAILABLE: {torch.cuda.is_available()}")
 
 network = network.to(device)
 
-def train(epoch):
+def pre_train():
     network.eval()
+    outputs = {}
     with torch.no_grad():
         for data, target in test_loader:
-            one_hot_labels = F.one_hot(target, num_classes=10)
-            print(one_hot_labels[0])
+            data = data.to(device)
+            output = network(data)
+
+            for single_output, single_target in zip(output, target):
+                _class = tuple(F.one_hot(single_target, num_classes=10).tolist())
+                if _class not in outputs:
+                    outputs[_class] = []
+                outputs[_class].append(single_output)
+        # Outputs contains all network outputs sorted by class, from there we can find the preferred values
+
+
+def train(epoch):
     network.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(device)
@@ -143,6 +154,7 @@ def test():
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
+pre_train()
 test()
 for epoch in range(1, n_epochs + 1):
   train(epoch)
