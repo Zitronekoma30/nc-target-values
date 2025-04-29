@@ -2,6 +2,7 @@
 import torch
 import torchvision
 import matplotlib.pyplot as plt
+import numpy as np
 
 # set values
 n_epochs = 3
@@ -69,7 +70,7 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return x
+        return F.log_softmax(x, dim=-1)
 
 # training
 network = Net()
@@ -81,7 +82,7 @@ train_counter = []
 test_losses = []
 test_counter = [i*len(train_loader)*batch_size_train for i in range(n_epochs+1)]
 def one_hot_nll_loss(output, oh_target):
-    log_probs = F.log_softmax(output, dim=-1)
+    log_probs = output # NN does log softmax already
     loss = -(oh_target * log_probs).sum(dim=-1).mean()
 
     return loss
@@ -99,6 +100,14 @@ print(f"CUDA IS AVAILABLE: {torch.cuda.is_available()}")
 
 network = network.to(device)
 
+def add_outputs_by_class(outputs, output, target):
+    for single_output, single_target in zip(output, target):
+        _class = tuple(F.one_hot(single_target, num_classes=10).tolist())
+        if _class not in outputs:
+            outputs[_class] = []
+        outputs[_class].append(single_output)
+    return outputs
+
 def pre_train():
     network.eval()
     outputs = {}
@@ -106,22 +115,55 @@ def pre_train():
         for data, target in test_loader:
             data = data.to(device)
             output = network(data)
+            outputs = add_outputs_by_class(outputs, output, target)
+        # calc and return class and non class values
+        # # Get list of (non) class values
+        nc_vals = []
+        c_vals = {}
 
-            for single_output, single_target in zip(output, target):
-                _class = tuple(F.one_hot(single_target, num_classes=10).tolist())
-                if _class not in outputs:
-                    outputs[_class] = []
-                outputs[_class].append(single_output)
-        # Outputs contains all network outputs sorted by class, from there we can find the preferred values
+        for c in outputs:
+            cv_idx = c.index(1)
+            c_vals[c] = []
+            print(f"Class {c} class values at index {cv_idx}")
+            for t in outputs[c]:
+                # Class vals
+                c_vals[c].append(t[cv_idx].item())
+                # Non class
+                other_values = torch.cat([t[:cv_idx], t[cv_idx+1:]])
+                nc_vals += other_values.tolist()
+        # # average
+        nc_mean = np.mean(nc_vals)
+        c_means = {}
+        for c in c_vals:
+            c_means[c] = np.mean(c_vals[c])
+        return nc_mean, c_means
 
+
+def sigma_method(class_targets, nclass_target, outputs, output, target):
+    std_devs_class = {}
+    std_dev_nc = 0
+    # REMEMBER .exp() to get to probability space for std dev
+    # .log() to go back to logs
+    # use probs for calculation use logs for training
+    new_class, new_nclass = 0, 0
+    return new_class, new_nclass
 
 def train(epoch):
     network.train()
+    
+    outputs = {}
+    class_targets = {}
+    nclass_target = 0
+
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(device)
         new_target = generate_target(target).to(device)
         optimizer.zero_grad()
         output = network(data)
+
+        # Do dynamic target values stuff
+        new_class, new_nclass = sigma_method(class_targets, nclass_target, outputs, output, target)
+
         loss = one_hot_nll_loss(output, new_target)
         loss.backward()
         optimizer.step()
@@ -154,7 +196,7 @@ def test():
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
-pre_train()
+print(pre_train())
 test()
 for epoch in range(1, n_epochs + 1):
   train(epoch)
