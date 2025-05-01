@@ -3,9 +3,10 @@ import torch
 import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
+from typing import Dict, Tuple
 
 # set values
-n_epochs = 3
+n_epochs = 4
 batch_size_train = 64
 batch_size_test = 1000
 learning_rate = 0.01
@@ -90,10 +91,21 @@ def one_hot_nll_loss(output, oh_target):
 def generate_target(target):
     one_hot = F.one_hot(target, num_classes=10)
     new_target = one_hot.float()
-    new_target[new_target == 1] = 0.8
-    new_target[new_target == 0] = 0.2
 
     return new_target
+
+def apply_class_values(oh_targets: torch.Tensor, nc: float, c: Dict[Tuple, float]) -> torch.Tensor:
+    out_targets = []
+    # print(f"Input tensor: {oh_targets}")
+    for oh_target in oh_targets:
+        target = tuple(oh_target.tolist())
+        tvec = np.array(target)
+        tvec[tvec == 1] = c[target]
+        tvec[tvec == 0] = nc
+        out_targets.append(tvec)
+    # print(f"Output Tensor: {torch.tensor(np.array(out_targets))}")
+    return torch.tensor(oh_targets)
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"CUDA IS AVAILABLE: {torch.cuda.is_available()}")
@@ -124,8 +136,9 @@ def pre_train():
         for c in outputs:
             cv_idx = c.index(1)
             c_vals[c] = []
-            print(f"Class {c} class values at index {cv_idx}")
+            # print(f"Class {c} class values at index {cv_idx}")
             for t in outputs[c]:
+                t = t.exp()
                 # Class vals
                 c_vals[c].append(t[cv_idx].item())
                 # Non class
@@ -136,6 +149,7 @@ def pre_train():
         c_means = {}
         for c in c_vals:
             c_means[c] = np.mean(c_vals[c])
+            # print(c_vals[c])
         return nc_mean, c_means
 
 
@@ -148,16 +162,17 @@ def sigma_method(class_targets, nclass_target, outputs, output, target):
     new_class, new_nclass = 0, 0
     return new_class, new_nclass
 
-def train(epoch):
+def train(epoch, nc, c):
     network.train()
     
     outputs = {}
-    class_targets = {}
-    nclass_target = 0
+    class_targets: Dict[Tuple, float] = c
+    nclass_target: float = nc
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(device)
-        new_target = generate_target(target).to(device)
+        # new_target = generate_target(target)
+        new_target = apply_class_values(generate_target(target), nclass_target, class_targets).to(device)
         optimizer.zero_grad()
         output = network(data)
 
@@ -196,10 +211,10 @@ def test():
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
-print(pre_train())
+nc, c = pre_train()
 test()
 for epoch in range(1, n_epochs + 1):
-  train(epoch)
+  train(epoch, nc=nc, c=c)
   test()
 
 fig = plt.figure()
