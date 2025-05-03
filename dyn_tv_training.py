@@ -1,10 +1,13 @@
 # Initial Code: https://nextjournal.com/gkoehler/pytorch-mnist
 import torch
+from torch.utils.data import DataLoader
 import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import Callable, Dict, Tuple
-
+import wandb
+from typing import cast
+from collections.abc import Sized
 
 
 # ---------------------------------------------- #
@@ -19,6 +22,7 @@ learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
 random_seed = 1
+adaptation = "base" #TODO: Change this with cli args and pick adapt based on that
 
 CLASSES = 10
 
@@ -26,15 +30,14 @@ torch.backends.cudnn.enabled = False
 torch.manual_seed(random_seed)
 
 # load data
-
-train_loader = torch.utils.data.DataLoader(
+train_loader: torch.utils.data.DataLoader[torchvision.datasets.MNIST] = torch.utils.data.DataLoader(
     torchvision.datasets.MNIST('./files/', train=True, download=True, transform=torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.1307,),(0.3081,))
         ])),
         batch_size=batch_size_train, shuffle=True)
 
-test_loader = torch.utils.data.DataLoader(
+test_loader: torch.utils.data.DataLoader[torchvision.datasets.MNIST] = torch.utils.data.DataLoader(
     torchvision.datasets.MNIST('./files/', train=False, download=True, transform=torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.1307,),(0.3081,))
@@ -57,6 +60,20 @@ def show_examples():
     input()
 
 # show_examples()
+
+# WEIGHTS AND BIASES EXPERIMENT SETUP
+run = wandb.init(
+    entity="leon-andrassik-paris-lodron-universit-t-salzburg",
+    project="nc-adaptive-tv",
+
+    config={
+        "learning_rate": learning_rate,
+        "architecture": "CNN",
+        "dataset": "MNIST",
+        "epochs": n_epochs,
+        "adaptation": adaptation
+    }
+)
 
 ##################################
 ##          Network Setup       ##
@@ -212,14 +229,12 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = base
         outputs = add_outputs_by_class(outputs, output, target)
         
         loss = one_hot_nll_loss(output, new_target)
+        run.log({"loss":loss})
         loss.backward()
         optimizer.step()
 
         if batch_idx % log_interval == 0:
             print(f"Epoch: {epoch} [{batch_idx*len(data)}/{len(train_loader)*batch_size_train} Loss: {loss.item()}]")
-
-            train_losses.append(loss.item())
-            train_counter.append((epoch - 1) * len(train_loader.dataset) + batch_idx * len(data))
 
             torch.save(network.state_dict(), './results/model.pth')
             torch.save(optimizer.state_dict(), './results/optimizer.pth')
@@ -240,11 +255,11 @@ def test():
             test_loss += loss * data.size(0)
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.to(device).data.view_as(pred)).sum()
-    test_loss /= len(test_loader.dataset)
-    test_losses.append(test_loss)
-    print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+
+    test_loss /= len(cast(Sized, test_loader.dataset))
+
+    acc = 100. * correct / len(cast(Sized, test_loader.dataset))
+    run.log({"test accuracy (%)":acc, "test loss":test_loss})
 
 
 
@@ -255,22 +270,9 @@ def test():
 nc, c = pre_train()
 test()
 for epoch in range(1, n_epochs + 1):
-  train(epoch, nc=nc, c=c)
-  test()
+    run.log({"epoch":epoch})
+    train(epoch, nc=nc, c=c)
+    test()
 
-fig = plt.figure()
-plt.plot(
-    [x.item() if torch.is_tensor(x) else x for x in train_counter],
-    [y.item() if torch.is_tensor(y) else y for y in train_losses],
-    color='blue'
-)
-plt.scatter(
-    [x.item() if torch.is_tensor(x) else x for x in test_counter],
-    [y.item() if torch.is_tensor(y) else y for y in test_losses],
-    color='red'
-)
-plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
-plt.xlabel('number of training examples seen')
-plt.ylabel('negative log likelihood loss')
-fig.show()
-input()
+run.finish()
+
