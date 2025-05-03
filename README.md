@@ -11,3 +11,18 @@ However, using fixed values like `1` and `0` may not always yield optimal learni
 This project explores **dynamically optimizing** these values during training instead of using fixed constants. Early results show improvements in training speed and confidence, though gains in test accuracy are yet to be achieved.
 
 📄 See [`/docs`](./docs) for more details.
+
+## ✅ TO-DO
+
+### 🧩 Implementation
+- [ ] Implement basic σ-adaptation logic
+- [ ] Set up structured experiments and logging
+
+### 🧠 Algorithm Design
+- [ ] Refine the σ-adaptation strategy (tuning, edge cases)
+- [ ] Explore and prototype additional adaptation methods
+
+### 🔬 Research & Evaluation
+- [ ] Define evaluation metrics beyond accuracy/loss (e.g. training speed, confidence margin)
+- [ ] Analyze, visualize, and summarize results
+- [ ] Draft and outline the research paper
