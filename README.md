@@ -17,6 +17,7 @@ This project explores **dynamically optimizing** these values during training in
 ### 🧩 Implementation
 - [ ] Implement basic σ-adaptation logic
 - [ ] Set up structured experiments and logging
+- [ ] Build simple frontend for selecting method, starting and stopping training and displaying result in graph (maybe use "tensorboard" or "weights and biases")
 
 ### 🧠 Algorithm Design
 - [ ] Refine the σ-adaptation strategy (tuning, edge cases)
