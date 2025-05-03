@@ -1,0 +1,187 @@
+\documentclass[12pt,fleqn,a4paper]{article}
+
+\usepackage{latexsym}
+\usepackage{url}
+\usepackage{xspace}
+\usepackage{epsfig}
+\usepackage{psfrag}
+\usepackage{a4wide}
+\usepackage{marvosym}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym}
+\usepackage{graphics,graphicx,color,subfigure}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage[latin1]{inputenc}
+
+\textheight 680pt
+\textwidth 460pt
+\topmargin -40pt
+\oddsidemargin 5pt
+\evensidemargin 5pt
+\parindent 0pt
+
+\pagestyle{fancyplain} \setlength{\headheight}{16pt}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\ #1}}
+\lhead[\fancyplain{}{\thepage}]
+    {\fancyplain{}{\rightmark}}
+\rhead[\fancyplain{}{\leftmark}]
+    {\fancyplain{}{\thepage}}
+\cfoot{}
+\renewcommand{\thesection}{\arabic{section}}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+
+
+\begin{document}
+\begin{titlepage}%Institution
+\vspace{2cm}
+\centerline{
+\large{Department of Artificial Intelligence and Human Interfaces}}
+\vspace{0.2cm}
+\centerline{\large{University of Salzburg}}%Title with one or two Lines(More if wanted)
+%\hline
+\vspace{1cm}
+
+\centerline{\large{PS Natural Computation}}
+\centerline{SS 24}
+\vspace{1cm}
+
+\centerline{\Large{\bf{Optimizing of Target Values}} }%Type of the Document
+\vspace{1cm}
+
+\vspace{0.4cm}%Date
+\centerline{\today}
+\vspace{5cm}%Authors
+
+%\hline
+\vspace{0.2cm}
+Project Members:\\
+\centerline{Andrassik Leon, 12209906, leon.andrassik@stud.plus.ac.at}\\
+\centerline{Bhuiyan Amreen, 12203597, amreen.bhuiyan@stud.plus.ac.at}\\
+\centerline{Yakar Bet\"ul, 12205751, betuel.yakar@stud.plus.ac.at}\\
+\centerline{Zauner Sofia, 12118492, sofia.zauner@stud.plus.ac.at}\\
+\vspace {1cm}\\
+
+Academic Supervisor: \\
+\centerline{Helmut MAYER}
+\centerline{helmut@cosy.sbg.ac.at}
+\vspace{1.5cm}\\
+Correspondence to: \\
+\centerline{Universit\"{a}t Salzburg} \\
+\centerline{Fachbereich AIHI} \\
+\centerline{Jakob--Haringer--Stra\ss e 2} \\
+\centerline{A--5020 Salzburg} \\
+\centerline{Austria}
+\clearpage
+\end{titlepage}
+
+%Table of Content
+% \setcounter{page}{1}
+% \pagenumbering{Roman} %I,II,III... in the TOC
+% \tableofcontents
+
+\clearpage
+\pagestyle{headings}
+\pagenumbering{arabic}  %Better if TOC is variable (more than one page)
+\setcounter{page}{1}
+\pagenumbering{arabic}  %Better if TOC is variable (more than one page)
+\setcounter{page}{1}
+
+\abstract{
+The aim of our project is to implement an alternative method of choosing target values for classification with neural networks.  Instead of using traditional one-hot-encoding, this method involves assigning custom "class-values" to each of the according classes. Additionally we aim to find non-class values which will replace the previous 0s across all classes. 
+
+Our idea is to capture the models' natural predictions before (and during) training and use these to refine the class and non-class values as training progresses.
+
+This approach requires a different rule for determining the predicted class: rather than choosing the maximal output value, we select the neuron whose output value is closest to the corresponding target value and therefore has the lowest error; a method we will refer to as the "minimum error rule".
+
+The goal of our project is to increase training efficiency while maintaining acceptable output quality (i.e. classification accuracy).
+To achieve this, we will attempt to further specify some of the methods we have been introduced to and evaluate the performance of these approaches on the MNIST dataset.
+}
+\newpage
+
+\section{Introduction}
+
+\newpage
+
+\section{Milestones} % NOT in final paper
+\begin{itemize}
+\item {\textbf{26.03.25 - Project Kickoff and Theoretical Outline} \\ Create a rough outline of the project's content based on the given paper. Include loose definitions and a short summary of the introduced methods.}
+
+\item{\textbf{09.04.25 - Goal Specification} \\ Clarify the project idea, define concrete project goals, and deepen the understanding of the topic. Focus especially on precise definitions of target values, class values, and non-class values. Write the abstract and milestone plan for the semester.}
+
+\item{\textbf{23.04.35 - Algorithm Design and Planning} \\ Start working on the paper. Deepen research on alternative target value methods for classification with neural networks. Select and define an approach for alternative target encoding. Plan implementation steps for generating ``class-'' and ``non-class'' values.}
+
+\item{\textbf{07.05.25 - Initial Implementation and Testing of target value algorithm} \\ Initial implementation of the new target encoding method. Prepare simple experiments using simplified datasets to validate functionality.}
+
+\item{\textbf{21.05.25 - Compelete Implementation and Evaluate on MNIST-Experiments} \\ Complete implementation and testing of the alternative target value methods. Prepare and conduct experiments on the MNIST dataset. Analyze model predictions to evaluate performance compared to traditional one-hot encoding. Discuss results and possible improvements.}
+
+\item{\textbf{04.06.25 - Optimization and Comparative Analysis} \\ Complete improvements and experiments. Analyze experimental results and compare training efficiency and classification accuracy with traditional methods. Document findings and prepare initial draft of project report.}
+
+\item{\textbf{18.06.25 - Finalization} \\ Final preparations for submission. Complete report and presentation.}
+
+\end{itemize}
+
+\newpage
+
+\section{Progress of Work} % NOT in final paper
+
+\subsection{Week 1, Tuesday, 26.03.2025}
+
+\subsection{Week 2, Tuesday, 02.04.2025}
+
+\subsection{Week 3, Tuesday, 09.04.2025}
+
+\subsection{Week 4, Tuesday, 16.04.2025}
+
+\subsection{Week 5, Tuesday, 23.04.2025}
+
+\subsection{Week 6, Tuesday, 30.04.2025}
+
+\subsection{Week 7, Tuesday, 07.05.2025}
+
+\subsection{Week 8, Tuesday, 14.05.2025}
+
+\subsection{Week 9, Tuesday, 21.05.2025}
+
+\subsection{Week 10, Tuesday, 28.05.2025}
+
+\subsection{Week 11, Tuesday, 04.06.2025}
+
+\subsection{Week 12, Tuesday, 11.06.2025}
+
+\subsection{Week 13, Tuesday, 18.06.2025}
+
+\newpage
+
+\section{Subproject Responsibilities} % NOT in final paper
+
+\begin{itemize}
+\item{\textbf{Programming of Target Value Calculation Methods (Phyton)} \\
+ Leon Andrassik }
+\item{\textbf{Research and Preparation of Target Encoding Methods} \\
+\indent Bet\"ul Yakar, Sofia Zauner}
+\item{\textbf{Evaluation and Result Analysis} \\
+\indent Amreen Bhuiyan, Bet\"ul Yakar, Sofia Zauner}
+\item{\textbf{Project Documentation and Preparation of Presentations} \\
+\indent Leon Andrassik, Amreen Bhuiyan, Bet\"ul Yakar, Sofia Zauner }
+\item{\textbf{Presenting Progress Presentations} \\
+\indent Leon Andrassik }
+\item{\textbf{Presenting Final Presentation} \\
+\indent Amreen Bhuyian }
+\end{itemize}
+
+\newpage
+
+% links go here, NOT in references
+\section{Links}
+
+\begin{itemize}
+\item Project Page: \url{http://student.cosy.sbg.ac.at/???}
+\item PS Page:
+\url{http://www.cosy.sbg.ac.at/~helmut/Teaching/PSRobotik/}
+
+\end{itemize}
+
+% real scientific references
+\bibliography{}		% .bib files here
+
+\end{document}
