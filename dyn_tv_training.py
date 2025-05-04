@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--log-interval', type=int, default=10)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--adaptation', choices=adaptations.ADAPTATION_REGISTRY.keys(), default="base")
+    parser.add_argument('--targets', choices=["onehot", "soft", "dynamic"], default="dynamic")
     return parser.parse_args()
 
 args = parse_args()
@@ -39,6 +40,7 @@ momentum = args.momentum
 log_interval = args.log_interval
 random_seed = args.seed
 adaptation: Callable = adaptations.ADAPTATION_REGISTRY[args.adaptation]
+targets = args.targets
 
 CLASSES = 10
 
@@ -139,6 +141,13 @@ def generate_target(target):
 
     return new_target
 
+def generate_alt_target(target, targets):
+    out = generate_target(target)
+    if targets == "soft":
+        out[out == 1.0] = 0.8
+        out[out == 0.0] = 0.2
+    return out
+
 def apply_class_values(oh_targets: torch.Tensor, nc: float, c: Dict[Tuple, float]) -> torch.Tensor:
     """Switches a batch of target vectors from standard one hot encoding to soft targets determined by provided c and nc."""
     out_targets = []
@@ -150,7 +159,7 @@ def apply_class_values(oh_targets: torch.Tensor, nc: float, c: Dict[Tuple, float
         tvec[tvec == 0] = nc
         out_targets.append(tvec)
     # print(f"Output Tensor: {torch.tensor(np.array(out_targets))}")
-    return torch.tensor(oh_targets)
+    return torch.tensor(np.array(out_targets), dtype=torch.float32)
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -205,7 +214,7 @@ def pre_train() -> Tuple[float, Dict[Tuple, float]]:
 ##          TRAINING AND TESTING            ##
 ##############################################
 
-def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adaptations.base):
+def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adaptations.base, targets="dynamic"):
     """Trains network according using specified target spacing method, returns new spaced values for next epoch"""
     network.train()
     
@@ -216,7 +225,10 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adap
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(device)
         # new_target = generate_target(target)
-        new_target = apply_class_values(generate_target(target), nclass_target, class_targets).to(device)
+        if targets != "dynamic":
+            new_target = generate_alt_target(target, targets).to(device)
+        else:
+            new_target = apply_class_values(generate_target(target), nclass_target, class_targets).to(device)
         optimizer.zero_grad()
         output = network(data)
         outputs = add_outputs_by_class(outputs, output, target)
@@ -236,7 +248,7 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adap
 
 
 
-def test(epoch=0.0):
+def test(epoch=0.0, targets="dynamic"):
     """Tests network using test dataset"""
     network.eval()
     test_loss = 0
@@ -247,7 +259,11 @@ def test(epoch=0.0):
     with torch.no_grad():
         for data, target in test_loader:
             data = data.to(device)
-            target_vecs = generate_target(target).to(device)
+            if targets != "dynamic":
+                target_vecs = generate_alt_target(target, targets).to(device)
+            else:
+                target_vecs = generate_target(target).to(device)
+
             output = network(data)
 
             loss = one_hot_nll_loss(output, target_vecs)
@@ -263,7 +279,7 @@ def test(epoch=0.0):
             total_samples += data.size(0)
 
     test_loss /= len(cast(Sized, test_loader.dataset))
-    acc = 100. * correct / len(cast(Sized, test_loader.dataset))
+    acc = correct / len(cast(Sized, test_loader.dataset))
     avg_conf = total_confidence / total_samples
 
     run.log({
@@ -282,10 +298,10 @@ def test(epoch=0.0):
 ###############################
 
 nc, c = pre_train()
-test(epoch=1)
+test(epoch=1, targets=targets)
 for epoch in range(1, n_epochs + 1):
-    nc, c = train(epoch, nc=nc, c=c, spacing=adaptation)
-    test(epoch=float(epoch)+0.999)
+    nc, c = train(epoch, nc=nc, c=c, spacing=adaptation, targets=targets)
+    test(epoch=float(epoch)+0.999, targets=targets)
 
 run.finish()
 
