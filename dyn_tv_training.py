@@ -8,21 +8,37 @@ from typing import Callable, Dict, Tuple
 import wandb
 from typing import cast
 from collections.abc import Sized
-
+from enum import Enum
+import argparse
+import adaptations
 
 # ---------------------------------------------- #
 #               SETUP / LOADING DATA             #
 # ---------------------------------------------- #
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--epochs', type=int, default=4)
+    parser.add_argument('--batch-size-train', type=int, default=64)
+    parser.add_argument('--batch-size-test', type=int, default=1000)
+    parser.add_argument('--learning-rate', type=float, default=0.01)
+    parser.add_argument('--momentum', type=float, default=0.5)
+    parser.add_argument('--log-interval', type=int, default=10)
+    parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--adaptation', choices=adaptations.ADAPTATION_REGISTRY.keys(), default="base")
+    return parser.parse_args()
+
+args = parse_args()
+
 # set values
-n_epochs = 4
-batch_size_train = 64
-batch_size_test = 1000
-learning_rate = 0.01
-momentum = 0.5
-log_interval = 10
-random_seed = 1
-adaptation = "base" #TODO: Change this with cli args and pick adapt based on that
+n_epochs = args.epochs
+batch_size_train = args.batch_size_train
+batch_size_test = args.batch_size_test
+learning_rate = args.learning_rate
+momentum = args.momentum
+log_interval = args.log_interval
+random_seed = args.seed
+adaptation: Callable = adaptations.ADAPTATION_REGISTRY[args.adaptation]
 
 CLASSES = 10
 
@@ -66,13 +82,7 @@ run = wandb.init(
     entity="leon-andrassik-paris-lodron-universit-t-salzburg",
     project="nc-adaptive-tv",
 
-    config={
-        "learning_rate": learning_rate,
-        "architecture": "CNN",
-        "dataset": "MNIST",
-        "epochs": n_epochs,
-        "adaptation": adaptation
-    }
+    config=vars(args)
 )
 
 ##################################
@@ -190,29 +200,12 @@ def pre_train() -> Tuple[float, Dict[Tuple, float]]:
             # print(c_vals[c])
         return float(nc_mean), c_means
 
-#######################################
-##          SPACING METHODS          ##
-#######################################
-
-def base_method(class_targets: Dict[Tuple, float], nclass_target: float, outputs):
-    """Serves as stand in if no spacing is desired, returns back existing nc and c"""
-    return  nclass_target, class_targets
-
-def sigma_method(class_targets: Dict[Tuple, float], nclass_target: float, outputs):
-    """Spaces the class/non class values using a combination of their std deviation, returns new nc and c"""
-    std_devs_class = {}
-    std_dev_nc = 0
-    # REMEMBER .exp() to get to probability space for std dev
-    # .log() to go back to logs
-    # use probs for calculation use logs for training
-    new_class, new_nclass = 0, 0
-    return new_nclass, new_class
 
 ##############################################
 ##          TRAINING AND TESTING            ##
 ##############################################
 
-def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = base_method):
+def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adaptations.base):
     """Trains network according using specified target spacing method, returns new spaced values for next epoch"""
     network.train()
     
@@ -229,7 +222,7 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = base
         outputs = add_outputs_by_class(outputs, output, target)
         
         loss = one_hot_nll_loss(output, new_target)
-        run.log({"loss":loss})
+        run.log({"loss":loss, "epoch":epoch + batch_idx / len(train_loader)})
         loss.backward()
         optimizer.step()
 
@@ -241,25 +234,46 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = base
 
     return spacing(class_targets, nclass_target, outputs)
 
-def test():
+
+
+def test(epoch=0.0):
     """Tests network using test dataset"""
     network.eval()
     test_loss = 0
     correct = 0
+    total_confidence = 0.0
+    total_samples = 0
+
     with torch.no_grad():
         for data, target in test_loader:
             data = data.to(device)
+            target_vecs = generate_target(target).to(device)
             output = network(data)
-            # test_loss += F.nll_loss(output, target, size_average=False).item()
-            loss = one_hot_nll_loss(output, generate_target(target).to(device))
+
+            loss = one_hot_nll_loss(output, target_vecs)
             test_loss += loss * data.size(0)
+
+            # Prediction and accuracy (same as before)
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.to(device).data.view_as(pred)).sum()
 
-    test_loss /= len(cast(Sized, test_loader.dataset))
+            # Confidence: cosine similarity between output and target vector
+            cos_sim = torch.nn.functional.cosine_similarity(output, target_vecs, dim=1)
+            total_confidence += cos_sim.sum().item()
+            total_samples += data.size(0)
 
+    test_loss /= len(cast(Sized, test_loader.dataset))
     acc = 100. * correct / len(cast(Sized, test_loader.dataset))
-    run.log({"test accuracy (%)":acc, "test loss":test_loss})
+    avg_conf = total_confidence / total_samples
+
+    run.log({
+        "test accuracy (%)": acc,
+        "test loss": test_loss,
+        "avg cosine similarity (confidence)": avg_conf,
+        "epoch": epoch
+    })
+
+
 
 
 
@@ -268,11 +282,10 @@ def test():
 ###############################
 
 nc, c = pre_train()
-test()
+test(epoch=1)
 for epoch in range(1, n_epochs + 1):
-    run.log({"epoch":epoch})
-    train(epoch, nc=nc, c=c)
-    test()
+    nc, c = train(epoch, nc=nc, c=c, spacing=adaptation)
+    test(epoch=float(epoch)+0.999)
 
 run.finish()
 
