@@ -210,6 +210,24 @@ def pre_train() -> Tuple[float, Dict[Tuple, float]]:
         return float(nc_mean), c_means
 
 
+def predict_by_nearest_target(output: torch.Tensor, class_targets: Dict[Tuple, float], nc: float) -> torch.Tensor:
+    """
+    Given a batch of outputs and your class_targets/nc, return predicted class indices.
+    """
+    target_vectors = []
+    class_list = list(class_targets.keys())
+
+    for c in class_list:
+        vec = np.array(c)
+        vec = np.where(np.array(vec) == 1.0, class_targets[c], nc)
+        target_vectors.append(vec)
+
+    target_matrix = torch.tensor(target_vectors, dtype=torch.float32).to(output.device)  # shape: [num_classes, num_outputs]
+    output = output.unsqueeze(1)  # shape: [batch, 1, num_outputs]
+    diffs = ((output - target_matrix) ** 2).mean(dim=2)  # shape: [batch, num_classes]
+
+    predicted_classes = diffs.argmin(dim=1)  # closest class = smallest MSE
+    return predicted_classes
 ##############################################
 ##          TRAINING AND TESTING            ##
 ##############################################
@@ -252,8 +270,9 @@ def test(epoch=0.0, targets="dynamic"):
     """Tests network using test dataset"""
     network.eval()
     test_loss = 0
-    correct = 0
     total_confidence = 0.0
+    total_soft_accuracy = 0.0
+    total_correct = 0
     total_samples = 0
 
     with torch.no_grad():
@@ -265,29 +284,42 @@ def test(epoch=0.0, targets="dynamic"):
                 target_vecs = generate_target(target).to(device)
 
             output = network(data)
+            probs = output.exp()
 
             loss = one_hot_nll_loss(output, target_vecs)
             test_loss += loss * data.size(0)
 
-            # Prediction and accuracy (same as before)
-            pred = output.data.max(1, keepdim=True)[1]
-            correct += pred.eq(target.to(device).data.view_as(pred)).sum()
+            # Soft accuracy
+            soft_acc = (probs * target_vecs).sum(dim=1).mean().item()
+            total_soft_accuracy += soft_acc * data.size(0)
 
-            # Confidence: cosine similarity between output and target vector
+            # Cosine similarity
             cos_sim = torch.nn.functional.cosine_similarity(output, target_vecs, dim=1)
             total_confidence += cos_sim.sum().item()
+
+            # Predicted class (based on nearest target vector)
+            if targets == "dynamic":
+                predicted = predict_by_nearest_target(output, c, nc)
+                total_correct += predicted.eq(target).sum().item()
+            else:
+                predicted = output.argmax(dim=1)
+                total_correct += predicted.eq(target).sum().item()
+
             total_samples += data.size(0)
 
-    test_loss /= len(cast(Sized, test_loader.dataset))
-    acc = correct / len(cast(Sized, test_loader.dataset))
+    test_loss /= total_samples
+    avg_soft_acc = total_soft_accuracy / total_samples
     avg_conf = total_confidence / total_samples
-
-    run.log({
-        "test accuracy (%)": acc,
+    hard_acc = total_correct / total_samples
+    log_data = {
+        "soft accuracy": avg_soft_acc,
+        "hard accuracy": hard_acc,
         "test loss": test_loss,
         "avg cosine similarity (confidence)": avg_conf,
-        "epoch": epoch
-    })
+        "epoch": epoch,
+    }
+
+    run.log(log_data)
 
 
 
