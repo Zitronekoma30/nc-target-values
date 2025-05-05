@@ -5,8 +5,8 @@ from enum import Enum
 
 
 # ------- Helpers ------- #
-def extract_vals(outputs: Dict[Tuple, Tuple]):
-    """Extracts all class and non-class values grouped by class from outputs dict."""
+def extract_vals(outputs: Dict[Tuple, Tuple]) -> Tuple[List[float], Dict[Tuple, List]]:
+    """Extracts all class and non-class values grouped by class from outputs dict in log p. Returns values in probability space."""
     nc_vals: List[float] = []
     c_vals: Dict[Tuple, List] = {}
 
@@ -27,19 +27,24 @@ def extract_vals(outputs: Dict[Tuple, Tuple]):
 ##          Adaptations              ##
 #######################################
 
-def base(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple]):
+def base(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple]) -> Tuple[float, Dict[Tuple, float]]:
     """Serves as stand in if no spacing is desired, returns back existing nc and c"""
     return  nclass_target, class_targets
 
-def sigma(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple]):
+def sigma(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple]) -> Tuple[float, Dict[Tuple, float]]:
     """Spaces the class/non class values using a combination of their std deviation, returns new nc and c"""
-    std_devs_class = {}
-    std_dev_nc = 0
+    nc_o, c_o = extract_vals(outputs) # IN p NOT log p
+
+    std_devs_c: Dict[Tuple, float] = {}
+    std_dev_nc = np.std(nc_o)
+
+    for c in c_o.keys():
+        std_devs_c[c] = float(np.std(c_o[c]))
+
     # REMEMBER .exp() for outputs to get to probability space for std dev because of log_softmax on forward
     # .log() to go back to logs
     # use probs for calculation use logs for training
-    new_class, new_nclass = 0, 0
-    return new_nclass, new_class
+        return nclass_target, class_targets
 
 # ---------------- Registry ------------------- #
 
