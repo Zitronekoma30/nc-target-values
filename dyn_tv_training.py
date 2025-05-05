@@ -294,7 +294,7 @@ def test(epoch=0.0, targets="dynamic"):
             total_soft_accuracy += soft_acc * data.size(0)
 
             # Cosine similarity
-            cos_sim = torch.nn.functional.cosine_similarity(output, target_vecs, dim=1)
+            cos_sim = torch.nn.functional.cosine_similarity(output, target_vecs, dim=1) # TODO: Change to only compare to nearest target not all and not only the correct one
             total_confidence += cos_sim.sum().item()
 
             # Predicted class (based on nearest target vector)
