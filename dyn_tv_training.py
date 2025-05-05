@@ -187,21 +187,8 @@ def pre_train() -> Tuple[float, Dict[Tuple, float]]:
             outputs = add_outputs_by_class(outputs, output, target)
         # calc and return class and non class values
         # # Get list of (non) class values
-        nc_vals = []
-        c_vals = {}
+        nc_vals, c_vals = adaptations.extract_vals(outputs)
 
-        for c in outputs:
-            cv_idx = c.index(1)
-            c_vals[c] = []
-            # print(f"Class {c} class values at index {cv_idx}")
-            for t in outputs[c]:
-                t = t.exp()
-                # Class vals
-                c_vals[c].append(t[cv_idx].item())
-                # Non class
-                other_values = torch.cat([t[:cv_idx], t[cv_idx+1:]])
-                nc_vals += other_values.tolist()
-        # # average
         nc_mean = np.mean(nc_vals)
         c_means = {}
         for c in c_vals:
@@ -296,7 +283,7 @@ def test(epoch=0.0, targets="dynamic"):
             total_soft_accuracy += soft_acc * data.size(0)
 
             # Cosine similarity
-            cos_sim = torch.nn.functional.cosine_similarity(output, target_vecs, dim=1) # TODO: Change to only compare to nearest target not all and not only the correct one
+            cos_sim = torch.nn.functional.cosine_similarity(output.exp(), target_vecs, dim=1) # TODO: Change to only compare to nearest target not all and not only the correct one
             total_confidence += cos_sim.sum().item()
 
             # Predicted class (based on nearest target vector)
