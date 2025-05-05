@@ -15,7 +15,9 @@ This project explores **dynamically optimizing** these values during training in
 ## ✅ TO-DO
 
 ### 🧩 Implementation
-- [ ] Implement basic σ-adaptation logic
+- [X] Implement basic σ-adaptation logic (only nc)
+- [ ] Implement more advanced σ-adaptation based techniques
+- [ ] Implement regularization
 - [ ] Fix confidence calculation: Calculate cosine similarity of output vector to closest target vector (not necessarily the correct target)
 - [X] Set up structured experiments and logging
 - [X] Build simple frontend for selecting method, starting and stopping training and displaying result in graph (maybe use "tensorboard" or "weights and biases")
@@ -23,6 +25,7 @@ This project explores **dynamically optimizing** these values during training in
 ### 🧠 Algorithm Design
 - [ ] Refine the σ-adaptation strategy (tuning, edge cases)
 - [ ] Explore and prototype additional adaptation methods
+- [ ] Find strategies to minimize overfitting (regularization technqiues)
 
 ### 🔬 Research & Evaluation
 - [ ] Define evaluation metrics beyond accuracy/loss (e.g. training speed, confidence margin)
