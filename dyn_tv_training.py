@@ -44,7 +44,7 @@ targets = args.targets
 
 CLASSES = 10
 
-torch.backends.cudnn.enabled = False
+torch.backends.cudnn.enabled = True
 torch.manual_seed(random_seed)
 
 # load data
@@ -194,28 +194,40 @@ def pre_train() -> Tuple[float, Dict[Tuple, float]]:
         for c in c_vals:
             c_means[c] = np.mean(c_vals[c])
             # print(c_vals[c])
-        return float(nc_mean), c_means
+        return np.log(1), c_means
+        # return float(nc_mean), c_means
 
 
-def predict_by_nearest_target(output: torch.Tensor, class_targets: Dict[Tuple, float], nc: float) -> torch.Tensor:
+def predict_by_nearest_target(
+    output: torch.Tensor,                       # [batch, num_classes] – **log‑softmax** scores
+    class_targets: Dict[Tuple, float],          # {(1,0,0,…): log p_c , …}
+    nc: float                                   # log p for every non‑class slot
+) -> torch.Tensor:
     """
-    Given a batch of outputs and your class_targets/nc, return predicted class indices.
+    Return the index of the class‑template whose log‑vector is closest (MSE) to
+    each network output.  Everything stays in **log‑probability space** – no exp().
     """
-    output = output.exp()
-    target_vectors = []
-    class_list = list(class_targets.keys())
+    device      = output.device
+    num_classes = output.size(1)                # assumes one logit per class
 
-    for c in class_list:
-        vec = np.array(c)
-        vec = np.where(np.array(vec) == 1.0, class_targets[c], nc)
-        target_vectors.append(vec)
+    # --- build a matrix [num_classes, num_classes] of template log‑vectors ----
+    # row k = log‑vector expected for class k
+    template = torch.full(
+        (num_classes, num_classes), nc, dtype=torch.float32, device=device
+    )
 
-    target_matrix = torch.tensor(target_vectors, dtype=torch.float32).to(output.device)  # shape: [num_classes, num_outputs]
-    output = output.unsqueeze(1)  # shape: [batch, 1, num_outputs]
-    diffs = ((output - target_matrix) ** 2).mean(dim=2)  # shape: [batch, num_classes]
+    # fill diagonal slots with the per‑class “correct” value
+    for one_hot, log_pc in class_targets.items():
+        class_idx = one_hot.index(1)            # position of the “1” in the tuple
+        template[class_idx, class_idx] = log_pc
 
-    predicted_classes = diffs.argmin(dim=1)  # closest class = smallest MSE
-    return predicted_classes
+    # --- compare each output to every template (still in log‑space) ------------
+    # output_expanded : [batch,   1,         num_classes]
+    # template        : [1,    num_classes,  num_classes]
+    diffs   = ((output.unsqueeze(1) - template) ** 2).mean(dim=2)  # [batch, num_classes]
+    preds   = diffs.argmin(dim=1)                                  # [batch]
+
+    return preds
 
 ##############################################
 ##          TRAINING AND TESTING            ##
@@ -255,7 +267,7 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adap
 
 
 
-def test(epoch=0.0, targets="dynamic"):
+def test(nc, c, epoch=0.0, targets="dynamic"):
     """Tests network using test dataset"""
     network.eval()
     test_loss = 0
@@ -319,10 +331,10 @@ def test(epoch=0.0, targets="dynamic"):
 ###############################
 
 nc, c = pre_train()
-test(epoch=1, targets=targets)
+test(nc=nc, c=c, epoch=1, targets=targets)
 for epoch in range(1, n_epochs + 1):
-    nc, c = train(epoch, nc=nc, c=c, spacing=adaptation, targets=targets)
-    test(epoch=float(epoch)+0.999, targets=targets)
+    nc, c = train(nc=nc, c=c, epoch=epoch, spacing=adaptation, targets=targets)
+    test(epoch=float(epoch)+0.999, targets=targets, c=c, nc=nc)
 
 run.finish()
 
