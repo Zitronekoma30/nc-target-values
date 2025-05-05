@@ -33,18 +33,31 @@ def base(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[
 
 def sigma(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple]) -> Tuple[float, Dict[Tuple, float]]:
     """Spaces the class/non class values using a combination of their std deviation, returns new nc and c"""
+    new_nc: float = nclass_target # Not in log space
+    print(f"applying sigma spacing to nc (p): {new_nc}")
     nc_o, c_o = extract_vals(outputs) # IN p NOT log p
+
+    means_c: Dict[Tuple, float] = {}
 
     std_devs_c: Dict[Tuple, float] = {}
     std_dev_nc = np.std(nc_o)
 
     for c in c_o.keys():
         std_devs_c[c] = float(np.std(c_o[c]))
+        means_c[c] = float(np.mean(c_o[c]))
+
+    for c in std_devs_c:
+        s_sum = std_devs_c[c] + std_dev_nc
+        if np.abs(class_targets[c] - new_nc) >= s_sum:
+            continue
+        else:
+            new_nc = max(0, float(new_nc-s_sum))
+            print(f"non class adjusted to: {new_nc} by {s_sum}")
 
     # REMEMBER .exp() for outputs to get to probability space for std dev because of log_softmax on forward
     # .log() to go back to logs
     # use probs for calculation use logs for training
-        return nclass_target, class_targets
+    return new_nc, class_targets
 
 # ---------------- Registry ------------------- #
 

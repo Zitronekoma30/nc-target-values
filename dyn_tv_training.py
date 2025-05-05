@@ -176,7 +176,7 @@ def add_outputs_by_class(outputs, output, target):
         outputs[_class].append(single_output)
     return outputs
 
-def pre_train() -> Tuple[float, Dict[Tuple, float]]:
+def pre_train(spacing: Callable = adaptations.base) -> Tuple[float, Dict[Tuple, float]]:
     """Find the naturally preferred values for each class as well as the non class value, returns their mean in p space"""
     network.eval()
     outputs = {}
@@ -194,9 +194,9 @@ def pre_train() -> Tuple[float, Dict[Tuple, float]]:
         for c in c_vals:
             c_means[c] = np.mean(c_vals[c])
             # print(c_vals[c])
-        # return np.log(1), c_means
-        return float(nc_mean), c_means
 
+        # return np.log(1), c_means
+        return spacing(c_means, float(nc_mean), outputs)
 
 def predict_by_nearest_target(
     output: torch.Tensor,                       # [batch, num_classes] – **log‑softmax** scores
@@ -331,7 +331,7 @@ def test(nc, c, epoch=0.0, targets="dynamic"):
 ##        RUN EXPERIMENT     ##
 ###############################
 
-nc, c = pre_train()
+nc, c = pre_train(spacing=adaptation)
 test(nc=nc, c=c, epoch=1, targets=targets)
 for epoch in range(1, n_epochs + 1):
     nc, c = train(nc=nc, c=c, epoch=epoch, spacing=adaptation, targets=targets)
