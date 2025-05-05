@@ -214,6 +214,7 @@ def predict_by_nearest_target(output: torch.Tensor, class_targets: Dict[Tuple, f
     """
     Given a batch of outputs and your class_targets/nc, return predicted class indices.
     """
+    output = output.exp()
     target_vectors = []
     class_list = list(class_targets.keys())
 
@@ -228,6 +229,7 @@ def predict_by_nearest_target(output: torch.Tensor, class_targets: Dict[Tuple, f
 
     predicted_classes = diffs.argmin(dim=1)  # closest class = smallest MSE
     return predicted_classes
+
 ##############################################
 ##          TRAINING AND TESTING            ##
 ##############################################
