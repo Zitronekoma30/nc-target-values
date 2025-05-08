@@ -18,8 +18,10 @@ This project explores **dynamically optimizing** these values during training in
 - [X] Implement basic σ-adaptation logic (only nc)
 - [ ] Implement more advanced σ-adaptation based techniques
 - [ ] Implement regularization
-- [ ] Fix confidence calculation: Calculate cosine similarity of output vector to closest target vector (not necessarily the correct target)
-- [ ] Log current class/non-class values
+- [X] Fix confidence calculation: Calculate cosine similarity of output vector to closest target vector (not necessarily the correct target)
+- [X] Log current class/non-class values
+- [ ] Test label noise to force overfitting
+- [ ] Test reduced train dataset to force overfitting
 - [X] Set up structured experiments and logging
 - [X] Build simple frontend for selecting method, starting and stopping training and displaying result in graph (maybe use "tensorboard" or "weights and biases")
 
