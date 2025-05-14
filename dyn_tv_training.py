@@ -27,6 +27,8 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--adaptation', choices=adaptations.ADAPTATION_REGISTRY.keys(), default="base")
     parser.add_argument('--targets', choices=["onehot", "soft", "dynamic"], default="dynamic")
+    parser.add_argument('--push-multiplier', type=float, default=1.0)
+    parser.add_argument('--first-push-multiplier', type=float, default=1.0)
     return parser.parse_args()
 
 args = parse_args()
@@ -41,6 +43,10 @@ log_interval = args.log_interval
 random_seed = args.seed
 adaptation: Callable = adaptations.ADAPTATION_REGISTRY[args.adaptation]
 targets = args.targets
+push_mult = args.push_multiplier
+first_push_mult = args.first_push_multiplier
+
+print(f"pushing by x{push_mult} and initially by {first_push_mult} if applicable")
 
 CLASSES = 10
 
@@ -196,7 +202,7 @@ def pre_train(spacing: Callable = adaptations.base) -> Tuple[float, Dict[Tuple, 
             # print(c_vals[c])
 
         # return np.log(1), c_means
-        return spacing(c_means, float(nc_mean), outputs)
+        return spacing(c_means, float(nc_mean), outputs, multiplier=first_push_mult)
 
 def predict_by_nearest_target(
     output: torch.Tensor,                       # [batch, num_classes] – **log‑softmax** scores
@@ -263,7 +269,7 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adap
             torch.save(network.state_dict(), './results/model.pth')
             torch.save(optimizer.state_dict(), './results/optimizer.pth')
 
-    return spacing(class_targets, nclass_target, outputs)
+    return spacing(class_targets, nclass_target, outputs, push_mult)
 
 
 

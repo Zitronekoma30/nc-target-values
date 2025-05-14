@@ -27,13 +27,13 @@ def extract_vals(outputs: Dict[Tuple, Tuple]) -> Tuple[List[float], Dict[Tuple, 
 ##          Adaptations              ##
 #######################################
 
-def base(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple]) -> Tuple[float, Dict[Tuple, float]]:
+def base(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple], multiplier: float = 1) -> Tuple[float, Dict[Tuple, float]]:
     """Serves as stand in if no spacing is desired, returns back existing nc and c"""
     return  nclass_target, class_targets
 
-def sigma(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple]) -> Tuple[float, Dict[Tuple, float]]:
+def sigma(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple], uni_directional = True, multiplier: float = 1) -> Tuple[float, Dict[Tuple, float]]:
     """Spaces the class/non class values using a combination of their std deviation, returns new nc and c"""
-    new_nc: float = nclass_target # Not in log space
+    new_nc: float = float(nclass_target) # in prob space
     print(f"applying sigma spacing to nc (p): {new_nc}")
     nc_o, c_o = extract_vals(outputs) # IN p NOT log p
 
@@ -47,12 +47,21 @@ def sigma(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict
         means_c[c] = float(np.mean(c_o[c]))
 
     for c in std_devs_c:
+        print(f"new_nc = {new_nc}, type = {type(new_nc)}")
+        print(f"std_devs_c[{c}] = {std_devs_c[c]}, type = {type(std_devs_c[c])}")
+        print(f"std_dev_nc = {std_dev_nc}, type = {type(std_dev_nc)}")
         s_sum = std_devs_c[c] + std_dev_nc
+        print(f"s_sum = {s_sum}, type = {type(s_sum)}")
         if np.abs(class_targets[c] - new_nc) >= s_sum:
             continue
         else:
-            new_nc = max(0, float(new_nc-s_sum))
-            print(f"non class adjusted to: {new_nc} by {s_sum}")
+            target_val = float(class_targets[c])
+            if uni_directional or new_nc < target_val:
+                adjusted = float(new_nc - s_sum) * multiplier
+                new_nc = max(0, adjusted)
+            else:
+                adjusted = float(new_nc + s_sum) * multiplier
+                new_nc = min(1, adjusted)
 
     # REMEMBER .exp() for outputs to get to probability space for std dev because of log_softmax on forward
     # .log() to go back to logs
