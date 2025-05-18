@@ -86,19 +86,33 @@ Correspondence to: \\
 \pagenumbering{arabic}  %Better if TOC is variable (more than one page)
 \setcounter{page}{1}
 
-\abstract{
-The aim of our project is to implement an alternative method of choosing target values for classification with neural networks.  Instead of using traditional one-hot-encoding, this method involves assigning custom "class-values" to each of the according classes. Additionally we aim to find non-class values which will replace the previous 0s across all classes. 
+\abstract{}
+The aim of our project is to implement an alternative method of choosing target values for classification with neural networks.  Instead of using traditional one-hot-encoding, which uses fixed values of 0 and 1, this method involves assigning custom target values to each class. 
 
-Our idea is to capture the models' natural predictions before (and during) training and use these to refine the class and non-class values as training progresses.
+These target values are optimized dynamically during the training process, which distinguishes our approach from conventional fixed-target training. Our idea is to capture the model's natural predictions and use these to refine the target values.
 
-This approach requires a different rule for determining the predicted class: rather than choosing the maximal output value, we select the neuron whose output value is closest to the corresponding target value and therefore has the lowest error; a method we will refer to as the "minimum error rule".
+This approach requires a new rule for determining the predicted class: rather than choosing the neuron with the highest value, we select the neuron whose output value is closest to its corresponding target value and therefore has the lowest error; a method we will refer to as the "minimum error rule".
 
-The goal of our project is to increase training efficiency while maintaining acceptable output quality (i.e. classification accuracy).
-To achieve this, we will attempt to further specify some of the methods we have been introduced to and evaluate the performance of these approaches on the MNIST dataset.
-}
+The goal of our project is to increase training efficiency while maintaining acceptable classification accuracy. To evaluate the performance of our approach we will test it on the MNIST dataset and compare it to the one-hot encoding method.
+
 \newpage
 
 \section{Introduction}
+Artificial neural networks (ANNs) have become essential tools in modern classification tasks, mapping complex input data to discrete predefined output categories. The network's error is calculated as the difference between the desired output and the actual output produced by the network. The objective of the training process is to minimize this error through iterative adjustments of the network's weights and biases. Following the training phase, the network's performance is evaluated using a test set containing previously unseen data, which provides a neutral measure of its generalization capability and classification accuracy. \\
+
+Traditionally, the learning process of such networks is based on one-hot encoded target values, where the correct class is represented by the value 1, and all others are assigned a 0. This binary approach became standard due to its simplicity and compatibility with widely used loss functions. However, enforcing these extreme target values possibly leads to challenges, depending on the system's underlying activation function. It can negatively affect gradient flow, reduce training efficiency, and encourage overconfident predictions, making it a suboptimal choice by limiting the learning system's potential.\\
+
+One-hot encoding enforces a "winner-takes-all" dynamic, where only the neuron with the highest output is considered correct. This may oversimplify the refined behavior of a learning system. The process of learning in neural networks is not inherently about selecting the maximum value, but about minimizing error. When every output except the "correct" class is forced to zero, the network is pushed to create large contrasts in activation, which can slow down learning or introduce instability. \\
+
+In this project, we propose a more flexible approach for target value assignment in classification networks. Instead of defining fixed values of 0 and 1, we generate target vectors composed of custom class and non-class values. These alternative targets are not chosen arbitrarily, but rather inferred from the model's own inherent output tendencies during training. By adapting target values dynamically in response to the network's evolving behavior, we aim to guide learning in a way that is more aligned with the model's natural predictions. \\
+
+This change also calls for a rethinking of how predictions are interpreted. Instead of relying on the activation of the highest neuron to determine the predicted class, we introduce the "minimum error rule". We select the output neuron whose value is closest to its corresponding target value, thereby minimizing the error. This "closest-takes-all" strategy reflects the idea that a well-trained model should not necessarily produce a maximal value, but rather accurately match the desired response. \\
+
+Our hypothesis is that this method improves the training efficency, while maintaining, or enhancing, the classification accuracy. We empirically evaluate this method using the MNIST dataset, comparing its performance against the traditional one-hot encoding approach. \\
+
+
+
+
 
 \newpage
 
@@ -110,7 +124,7 @@ To achieve this, we will attempt to further specify some of the methods we have 
 
 \item{\textbf{23.04.35 - Algorithm Design and Planning} \\ Start working on the paper. Deepen research on alternative target value methods for classification with neural networks. Select and define an approach for alternative target encoding. Plan implementation steps for generating ``class-'' and ``non-class'' values.}
 
-\item{\textbf{07.05.25 - Initial Implementation and Testing of target value algorithm} \\ Initial implementation of the new target encoding method. Prepare simple experiments using simplified datasets to validate functionality.}
+\item{\textbf{07.05.25 - Initial Implementation and Testing of target value algorithm} \\ Initial implementation of the new target encoding method.  Before testing, allocate time for experimental design to ensure solid and interpretable results. Conduct simple experiments using simplified datasets to validate functionality.}
 
 \item{\textbf{21.05.25 - Compelete Implementation and Evaluate on MNIST-Experiments} \\ Complete implementation and testing of the alternative target value methods. Prepare and conduct experiments on the MNIST dataset. Analyze model predictions to evaluate performance compared to traditional one-hot encoding. Discuss results and possible improvements.}
 
