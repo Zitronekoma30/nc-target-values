@@ -24,6 +24,7 @@ This project explores **dynamically optimizing** these values during training in
 - [ ] Test reduced train dataset to force overfitting
 - [X] Set up structured experiments and logging
 - [X] Build simple frontend for selecting method, starting and stopping training and displaying result in graph (maybe use "tensorboard" or "weights and biases")
+- [ ] try: During σ pushing don't immediately update nc, instead sum up all the up and down pushes to get a total push. This way every class value has an impact not just the first.
 
 ### 🧠 Algorithm Design
 - [ ] Refine the σ-adaptation strategy (tuning, edge cases)
