@@ -17,7 +17,7 @@ This project explores **dynamically optimizing** these values during training in
 ### 🧩 Implementation
 - [X] Implement basic σ-adaptation logic (only nc)
 - [ ] Implement more advanced σ-adaptation based techniques
-- [ ] Implement regularization
+- [ ] Switch to using one non-class value for each class instead of one global one
 - [X] Fix confidence calculation: Calculate cosine similarity of output vector to closest target vector (not necessarily the correct target)
 - [X] Log current class/non-class values
 - [ ] Test label noise to force overfitting
