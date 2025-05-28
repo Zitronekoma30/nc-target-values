@@ -86,11 +86,14 @@ def show_examples():
 # show_examples()
 
 # WEIGHTS AND BIASES EXPERIMENT SETUP
+conf = vars(args)
+conf["nc_type"] = "many"
+
 run = wandb.init(
     entity="leon-andrassik-paris-lodron-universit-t-salzburg",
     project="nc-adaptive-tv",
 
-    config=vars(args)
+    config = conf
 )
 
 ##################################
@@ -154,7 +157,7 @@ def generate_alt_target(target, targets):
         out[out == 0.0] = 0.2
     return out
 
-def apply_class_values(oh_targets: torch.Tensor, nc: float, c: Dict[Tuple, float]) -> torch.Tensor:
+def apply_class_values(oh_targets: torch.Tensor, nc: Dict[Tuple, float], c: Dict[Tuple, float]) -> torch.Tensor:
     """Switches a batch of target vectors from standard one hot encoding to soft targets determined by provided c and nc."""
     out_targets = []
     # print(f"Input tensor: {oh_targets}")
@@ -162,7 +165,7 @@ def apply_class_values(oh_targets: torch.Tensor, nc: float, c: Dict[Tuple, float
         target = tuple(oh_target.tolist())
         tvec = np.array(target)
         tvec[tvec == 1] = c[target]
-        tvec[tvec == 0] = nc
+        tvec[tvec == 0] = nc[target]
         out_targets.append(tvec)
     # print(f"Output Tensor: {torch.tensor(np.array(out_targets))}")
     return torch.tensor(np.array(out_targets), dtype=torch.float32)
@@ -182,7 +185,7 @@ def add_outputs_by_class(outputs, output, target):
         outputs[_class].append(single_output)
     return outputs
 
-def pre_train(spacing: Callable = adaptations.base) -> Tuple[float, Dict[Tuple, float]]:
+def pre_train(spacing: Callable = adaptations.base) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
     """Find the naturally preferred values for each class as well as the non class value, returns their mean in p space"""
     network.eval()
     outputs = {}
@@ -195,57 +198,55 @@ def pre_train(spacing: Callable = adaptations.base) -> Tuple[float, Dict[Tuple, 
         # # Get list of (non) class values
         nc_vals, c_vals = adaptations.extract_vals(outputs)
 
-        nc_mean = np.mean(nc_vals)
+        nc_means = {}
         c_means = {}
         for c in c_vals:
             c_means[c] = np.mean(c_vals[c])
+            nc_means[c] = np.mean(nc_vals[c])
             # print(c_vals[c])
 
         # return np.log(1), c_means
-        return spacing(c_means, float(nc_mean), outputs, multiplier=first_push_mult)
+        return spacing(c_means, nc_means, outputs, multiplier=first_push_mult)
+
 
 def predict_by_nearest_target(
-    output: torch.Tensor,                       # [batch, num_classes] – **log‑softmax** scores
-    class_targets: Dict[Tuple, float],          # {(1,0,0,…): log p_c , …}
-    nc: float                                   # log p for every non‑class slot
+    output: torch.Tensor,                        # [B, C]  log-softmax
+    class_targets: Dict[Tuple[int, ...], float], # {(1,0,…): log p_hit, …}
+    nc_by_class: Dict[Tuple[int, ...], float],   # {(1,0,…): log p_miss, …}
 ) -> torch.Tensor:
-    """
-    Return the index of the class‑template whose log‑vector is closest (MSE) to
-    each network output.  Everything stays in **log‑probability space** – no exp().
-    """
-    device      = output.device
-    num_classes = output.size(1)                # assumes one logit per class
+    device, C = output.device, output.size(1)
 
-    # --- build a matrix [num_classes, num_classes] of template log‑vectors ----
-    # row k = log‑vector expected for class k
-    template = torch.full(
-        (num_classes, num_classes), nc, dtype=torch.float32, device=device
-    )
+    # ------------------------------------------------------------------
+    # Build template: one row per class, each with its own nc background
+    # ------------------------------------------------------------------
+    template = torch.empty((C, C), dtype=torch.float32, device=device)
 
-    # fill diagonal slots with the per‑class “correct” value
     for one_hot, log_pc in class_targets.items():
-        class_idx = one_hot.index(1)            # position of the “1” in the tuple
-        template[class_idx, class_idx] = log_pc
+        k        = one_hot.index(1)          # class index
+        row_nc   = nc_by_class[one_hot]      # that class’s “miss” value
+        template[k].fill_(row_nc)            # fill the whole row first
+        template[k, k] = log_pc              # then set the diagonal slot
 
-    # --- compare each output to every template (still in log‑space) ------------
-    # output_expanded : [batch,   1,         num_classes]
-    # template        : [1,    num_classes,  num_classes]
-    diffs   = ((output.unsqueeze(1) - template) ** 2).mean(dim=2)  # [batch, num_classes]
-    preds   = diffs.argmin(dim=1)                                  # [batch]
+    # ------------------------------------------------------------------
+    # Same distance-and-argmin as before
+    # ------------------------------------------------------------------
+    diffs = ((output.unsqueeze(1) - template)  # [B,1,C] – [1,C,C]
+             .pow(2)
+             .mean(dim=2))                    # [B,C]
+    return diffs.argmin(dim=1)                # [B]
 
-    return preds
 
 ##############################################
 ##          TRAINING AND TESTING            ##
 ##############################################
 
-def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adaptations.base, targets="dynamic"):
+def train(epoch: int, nc: Dict[Tuple, float], c: Dict[Tuple, float], spacing: Callable = adaptations.base, targets="dynamic"):
     """Trains network according using specified target spacing method, returns new spaced values for next epoch"""
     network.train()
     
     outputs = {}
     class_targets: Dict[Tuple, float] = c
-    nclass_target: float = nc
+    nclass_targets: Dict[Tuple, float] = nc
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(device)
@@ -253,7 +254,7 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adap
         if targets != "dynamic":
             new_target = generate_alt_target(target, targets).to(device)
         else:
-            new_target = apply_class_values(generate_target(target), nclass_target, class_targets).to(device)
+            new_target = apply_class_values(generate_target(target), nclass_targets, class_targets).to(device)
         optimizer.zero_grad()
         output = network(data)
         outputs = add_outputs_by_class(outputs, output, target)
@@ -269,7 +270,7 @@ def train(epoch: int, nc: float, c: Dict[Tuple, float], spacing: Callable = adap
             torch.save(network.state_dict(), './results/model.pth')
             torch.save(optimizer.state_dict(), './results/optimizer.pth')
 
-    return spacing(class_targets, nclass_target, outputs, push_mult)
+    return spacing(class_targets, nclass_targets, outputs, push_mult)
 
 
 
@@ -291,9 +292,9 @@ def test(nc, c, epoch=0.0, targets="dynamic"):
         num = class_vector.index(1)
         run.log({
             f"class value ({num})": c[class_vector],
+            f"non-class value ({num})": nc[class_vector],
             "epoch": epoch
         })
-    run.log({"non-class value": nc, "epoch": epoch})
 
     test_loss = 0
     total_confidence = 0.0
