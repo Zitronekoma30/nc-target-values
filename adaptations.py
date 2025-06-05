@@ -1,3 +1,4 @@
+from types import new_class
 from typing import Dict, Tuple, List
 import torch
 import numpy as np
@@ -33,10 +34,9 @@ def base(class_targets: Dict[Tuple, float], nclass_targets: Dict[Tuple, float], 
     """Serves as stand in if no spacing is desired, returns back existing nc and c"""
     return  nclass_targets, class_targets
 
-def sigma(class_targets: Dict[Tuple, float], nclass_targets: Dict[Tuple, float], outputs: Dict[Tuple, Tuple], uni_directional = True, multiplier: float = 1) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
+def sigma(class_targets: Dict[Tuple, float], nclass_targets: Dict[Tuple, float], outputs: Dict[Tuple, Tuple], uni_directional = False, multiplier: float = 1) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
     """Spaces the class/non class values using a combination of their std deviation, returns new nc and c"""
     new_nc: Dict[Tuple, float] = nclass_targets.copy() # in prob space
-    print(f"applying sigma spacing to nc (p): {new_nc}")
     nc_o, c_o = extract_vals(outputs) # IN p NOT log p
 
     means_c: Dict[Tuple, float] = {}
@@ -53,23 +53,27 @@ def sigma(class_targets: Dict[Tuple, float], nclass_targets: Dict[Tuple, float],
         means_nc[c] = float(np.mean(nc_o[c]))
 
     for c in std_devs_c:
-        print(f"new_nc = {new_nc}, type = {type(new_nc)}")
-        print(f"std_devs_c[{c}] = {std_devs_c[c]}, type = {type(std_devs_c[c])}")
-        print(f"std_dev_nc = {std_devs_nc[c]}, type = {type(std_devs_nc[c])}")
         s_sum = std_devs_c[c] + std_devs_nc[c]
-        print(f"s_sum = {s_sum}, type = {type(s_sum)}")
         if np.abs(class_targets[c] - new_nc[c]) >= s_sum*multiplier:
             continue
         else:
             class_val = float(class_targets[c])
             non_class_val = float(nclass_targets[c])
 
-            if uni_directional or non_class_val < class_val:
+            if uni_directional or non_class_val <= class_val:
+                print("pushing non-class down")
                 adjusted = float(non_class_val - s_sum) * multiplier
-                new_nc[c] = max(0, adjusted)
+                new_nc[c] = max(0.0, adjusted)
+
+                if new_nc[c] < 0.0001:
+                    class_targets[c] = 0.0 + s_sum * multiplier
             else:
+                print("pushing non-class up")
                 adjusted = float(non_class_val + s_sum) * multiplier
-                new_nc[c] = min(1, adjusted)
+                new_nc[c] = min(1.0, adjusted)
+
+                if new_nc[c] > 0.999:
+                    class_targets[c] = 1.0 - s_sum * multiplier
 
     # REMEMBER .exp() for outputs to get to probability space for std dev because of log_softmax on forward
     # .log() to go back to logs

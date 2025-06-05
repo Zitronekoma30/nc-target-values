@@ -1,5 +1,6 @@
 # Initial Code: https://nextjournal.com/gkoehler/pytorch-mnist
 import torch
+from torch.nn.modules import Linear
 from torch.utils.data import DataLoader
 import torchvision
 import matplotlib.pyplot as plt
@@ -106,13 +107,19 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, init_bounds=(0.0, 1.0)):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50,10)
+
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.uniform_(m.weight, init_bounds[0], init_bounds[1])
+                if m.bias is not None:
+                    nn.init.uniform_(m.bias, init_bounds[0], init_bounds[1])
     
     def forward(self, x):
         x = F.sigmoid(F.max_pool2d(self.conv1(x), 2))
@@ -209,31 +216,18 @@ def pre_train(spacing: Callable = adaptations.base) -> Tuple[Dict[Tuple, float],
         return spacing(c_means, nc_means, outputs, multiplier=first_push_mult)
 
 
-def predict_by_nearest_target(
-    output: torch.Tensor,                        # [B, C]  log-softmax
-    class_targets: Dict[Tuple[int, ...], float], # {(1,0,…): log p_hit, …}
-    nc_by_class: Dict[Tuple[int, ...], float],   # {(1,0,…): log p_miss, …}
-) -> torch.Tensor:
+def predict_by_nearest_target(output, class_targets, nc_by_class):
     device, C = output.device, output.size(1)
-
-    # ------------------------------------------------------------------
-    # Build template: one row per class, each with its own nc background
-    # ------------------------------------------------------------------
     template = torch.empty((C, C), dtype=torch.float32, device=device)
-
+    
     for one_hot, log_pc in class_targets.items():
-        k        = one_hot.index(1)          # class index
-        row_nc   = nc_by_class[one_hot]      # that class’s “miss” value
-        template[k].fill_(row_nc)            # fill the whole row first
-        template[k, k] = log_pc              # then set the diagonal slot
-
-    # ------------------------------------------------------------------
-    # Same distance-and-argmin as before
-    # ------------------------------------------------------------------
-    diffs = ((output.unsqueeze(1) - template)  # [B,1,C] – [1,C,C]
-             .pow(2)
-             .mean(dim=2))                    # [B,C]
-    return diffs.argmin(dim=1)                # [B]
+        k = one_hot.index(1)
+        row_nc = float(nc_by_class[one_hot])  # Convert to clean float
+        template[k].fill_(row_nc)
+        template[k, k] = float(log_pc)        # Convert to clean float
+    
+    diffs = ((output.unsqueeze(1) - template).pow(2).mean(dim=2))
+    return diffs.argmin(dim=1)
 
 
 ##############################################
@@ -265,7 +259,7 @@ def train(epoch: int, nc: Dict[Tuple, float], c: Dict[Tuple, float], spacing: Ca
         optimizer.step()
 
         if batch_idx % log_interval == 0:
-            print(f"Epoch: {epoch} [{batch_idx*len(data)}/{len(train_loader)*batch_size_train} Loss: {loss.item()}]")
+            print(f"Epoch: {epoch} [{batch_idx*len(data)}/{len(train_loader)*batch_size_train} Loss: {loss.item()}]", end="\r")
 
             torch.save(network.state_dict(), './results/model.pth')
             torch.save(optimizer.state_dict(), './results/optimizer.pth')
@@ -286,8 +280,6 @@ def test(nc, c, epoch=0.0, targets="dynamic"):
         class_target_vectors[class_target_vectors == 1] = 0.8
         class_target_vectors[class_target_vectors == 1] = 0.2
 
-    print(f"class target vectors: {class_target_vectors}")
-
     for class_vector in c:
         num = class_vector.index(1)
         run.log({
@@ -295,6 +287,19 @@ def test(nc, c, epoch=0.0, targets="dynamic"):
             f"non-class value ({num})": nc[class_vector],
             "epoch": epoch
         })
+
+    for class_tuple in c.keys():
+        separation = abs(c[class_tuple] - nc[class_tuple])
+        run.log({f"class_nc_separation_{class_tuple.index(1)}": separation, "epoch": epoch})
+
+    separations = [abs(c[k] - nc[k]) for k in c.keys()]
+    run.log({
+        "avg_separation": np.mean(separations),
+        "min_separation": np.min(separations), 
+        "max_separation": np.max(separations),
+        "epoch": epoch
+    })
+
 
     test_loss = 0
     total_confidence = 0.0
@@ -343,6 +348,11 @@ def test(nc, c, epoch=0.0, targets="dynamic"):
 
             total_samples += data.size(0)
 
+            # Add this in your test function:
+            if epoch == 1:  # Only debug on first test
+                debug_prediction(probs, target, c, nc)
+                debug_prediction_distances(probs, target, c, nc)
+
     test_loss /= total_samples
     avg_soft_acc = total_soft_accuracy / total_samples
     avg_conf = total_confidence / total_samples
@@ -358,8 +368,48 @@ def test(nc, c, epoch=0.0, targets="dynamic"):
     run.log(log_data)
 
 
+def debug_prediction(probs, target, c, nc, max_samples=3):
+    """Debug the first few predictions to see what's happening"""
+    
+    for i in range(min(max_samples, len(probs))):
+        print(f"\n--- Sample {i} ---")
+        sample_output = probs[i]
+        true_class = target[i].item()
+        
+        print(f"True class: {true_class}")
+        print(f"Network output: {sample_output.detach().cpu().numpy()}")
+        
+        # Show what the templates look like
+        print("\nTemplates:")
+        for class_tuple, c_val in c.items():
+            class_idx = class_tuple.index(1)
+            nc_val = nc[class_tuple]
+            template = [nc_val] * 10
+            template[class_idx-1] = c_val
+            print(f"  Class {class_idx}: {template}")
+        
+        # Get prediction
+        predicted = predict_by_nearest_target(sample_output.unsqueeze(0), c, nc)
+        print(f"Predicted class: {predicted[0].item()}")
+        print(f"Correct? {predicted[0].item() == true_class}")
 
-
+def debug_prediction_distances(probs, target, c, nc, max_samples=1):
+    for i in range(min(max_samples, len(probs))):
+        sample_output = probs[i]
+        true_class = target[i].item()
+        
+        print(f"\nSample {i}, True class: {true_class}")
+        print(f"Network output: {sample_output.detach().cpu().numpy()}")
+        
+        # Calculate distance to each template manually
+        for class_tuple, c_val in c.items():
+            class_idx = class_tuple.index(1)
+            nc_val = nc[class_tuple]
+            template = torch.full((10,), nc_val)
+            template[class_idx] = c_val
+            
+            distance = ((sample_output - template).pow(2)).mean()
+            print(f"Distance to class {class_idx}: {distance:.4f}")
 
 ###############################
 ##        RUN EXPERIMENT     ##
