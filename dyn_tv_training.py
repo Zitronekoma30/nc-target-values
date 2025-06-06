@@ -50,6 +50,12 @@ first_push_mult = args.first_push_multiplier
 print(f"pushing by x{push_mult} and initially by {first_push_mult} if applicable")
 
 CLASSES = 10
+CLASS_TUPLES = []
+
+for i in range(CLASSES):
+    t = [0 for _ in range(CLASSES)]
+    t[i] = 1
+    CLASS_TUPLES.append(tuple(t))
 
 torch.backends.cudnn.enabled = True
 torch.manual_seed(random_seed)
@@ -115,17 +121,17 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50,10)
 
-        for m in self.modules():
-            if isinstance(m, (nn.Conv2d, nn.Linear)):
-                nn.init.uniform_(m.weight, init_bounds[0], init_bounds[1])
-                if m.bias is not None:
-                    nn.init.uniform_(m.bias, init_bounds[0], init_bounds[1])
+        #for m in self.modules():
+            #if isinstance(m, (nn.Conv2d, nn.Linear)):
+                #nn.init.uniform_(m.weight, init_bounds[0], init_bounds[1])
+                #if m.bias is not None:
+                    #nn.init.uniform_(m.bias, init_bounds[0], init_bounds[1])
     
     def forward(self, x):
-        x = F.sigmoid(F.max_pool2d(self.conv1(x), 2))
-        x = F.sigmoid(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         x = x.view(-1, 320)
-        x = F.sigmoid(self.fc1(x))
+        x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=-1)
@@ -192,7 +198,17 @@ def add_outputs_by_class(outputs, output, target):
         outputs[_class].append(single_output)
     return outputs
 
-def pre_train(spacing: Callable = adaptations.base) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
+def pre_train(spacing):
+    c_vals = {}
+    nc_vals = {}
+    
+    for class_tuple in CLASS_TUPLES:
+        c_vals[class_tuple] = np.random.uniform(0, 1)
+        nc_vals[class_tuple] = np.random.uniform(0, 1)
+    
+    return spacing(c_vals, nc_vals, {}, multiplier=first_push_mult)
+
+def pre_train_old(spacing: Callable = adaptations.base) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
     """Find the naturally preferred values for each class as well as the non class value, returns their mean in p space"""
     network.eval()
     outputs = {}
@@ -349,6 +365,7 @@ def test(nc, c, epoch=0.0, targets="dynamic"):
             total_samples += data.size(0)
 
             # Add this in your test function:
+            print(torch.sum(data[1]))
             if epoch == 1:  # Only debug on first test
                 debug_prediction(probs, target, c, nc)
                 debug_prediction_distances(probs, target, c, nc)
@@ -385,7 +402,7 @@ def debug_prediction(probs, target, c, nc, max_samples=3):
             class_idx = class_tuple.index(1)
             nc_val = nc[class_tuple]
             template = [nc_val] * 10
-            template[class_idx-1] = c_val
+            template[class_idx] = c_val
             print(f"  Class {class_idx}: {template}")
         
         # Get prediction
