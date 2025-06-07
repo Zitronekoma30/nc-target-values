@@ -1,18 +1,18 @@
 from typing import Dict, Tuple, List
 import torch
 import numpy as np
-from enum import Enum
 
 
 # ------- Helpers ------- #
-def extract_vals(outputs: Dict[Tuple, Tuple]) -> Tuple[List[float], Dict[Tuple, List]]:
+def extract_vals(outputs: Dict[Tuple, Tuple]) -> Tuple[Dict[Tuple, List], Dict[Tuple, List]]:
     """Extracts all class and non-class values grouped by class from outputs dict in log p. Returns values in probability space."""
-    nc_vals: List[float] = []
+    nc_vals: Dict[Tuple, List] = {}
     c_vals: Dict[Tuple, List] = {}
 
     for c in outputs:
         cv_idx = c.index(1)
         c_vals[c] = []
+        nc_vals[c] = []
         # print(f"Class {c} class values at index {cv_idx}")
         for t in outputs[c]:
             t = t.exp()
@@ -20,48 +20,58 @@ def extract_vals(outputs: Dict[Tuple, Tuple]) -> Tuple[List[float], Dict[Tuple, 
             c_vals[c].append(t[cv_idx].item())
             # Non class
             other_values = torch.cat([t[:cv_idx], t[cv_idx+1:]])
-            nc_vals += other_values.tolist()
+
+            nc_vals[c] += other_values.tolist()
     return nc_vals, c_vals
 
 #######################################
 ##          Adaptations              ##
 #######################################
 
-def base(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple], multiplier: float = 1) -> Tuple[float, Dict[Tuple, float]]:
+def base(class_targets: Dict[Tuple, float], nclass_targets: Dict[Tuple, float], outputs: Dict[Tuple, Tuple], multiplier: float = 1) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
     """Serves as stand in if no spacing is desired, returns back existing nc and c"""
-    return  nclass_target, class_targets
+    return  nclass_targets, class_targets
 
-def sigma(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict[Tuple, Tuple], uni_directional = True, multiplier: float = 1) -> Tuple[float, Dict[Tuple, float]]:
+def sigma(class_targets: Dict[Tuple, float], nclass_targets: Dict[Tuple, float], outputs: Dict[Tuple, Tuple], uni_directional = False, multiplier: float = 1) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
     """Spaces the class/non class values using a combination of their std deviation, returns new nc and c"""
-    new_nc: float = float(nclass_target) # in prob space
-    print(f"applying sigma spacing to nc (p): {new_nc}")
+    new_nc: Dict[Tuple, float] = nclass_targets.copy() # in prob space
     nc_o, c_o = extract_vals(outputs) # IN p NOT log p
 
     means_c: Dict[Tuple, float] = {}
+    means_nc: Dict[Tuple, float] = {}
 
     std_devs_c: Dict[Tuple, float] = {}
-    std_dev_nc = np.std(nc_o)
+    std_devs_nc: Dict[Tuple, float] = {}
 
     for c in c_o.keys():
         std_devs_c[c] = float(np.std(c_o[c]))
+        std_devs_nc[c] = float(np.std(nc_o[c]))
+
         means_c[c] = float(np.mean(c_o[c]))
+        means_nc[c] = float(np.mean(nc_o[c]))
 
     for c in std_devs_c:
-        print(f"new_nc = {new_nc}, type = {type(new_nc)}")
-        print(f"std_devs_c[{c}] = {std_devs_c[c]}, type = {type(std_devs_c[c])}")
-        print(f"std_dev_nc = {std_dev_nc}, type = {type(std_dev_nc)}")
-        s_sum = std_devs_c[c] + std_dev_nc
-        print(f"s_sum = {s_sum}, type = {type(s_sum)}")
-        if np.abs(class_targets[c] - new_nc) >= s_sum:
+        s_sum = std_devs_c[c] + std_devs_nc[c]
+        if np.abs(class_targets[c] - new_nc[c]) >= s_sum*multiplier:
             continue
         else:
-            target_val = float(class_targets[c])
-            if uni_directional or new_nc < target_val:
-                adjusted = float(new_nc - s_sum) * multiplier
-                new_nc = max(0, adjusted)
+            class_val = float(class_targets[c])
+            non_class_val = float(nclass_targets[c])
+
+            if uni_directional or non_class_val <= class_val:
+                print("pushing non-class down")
+                adjusted = float(non_class_val - s_sum) * multiplier
+                new_nc[c] = max(0.0, adjusted)
+
+                if new_nc[c] < 0.0001:
+                    class_targets[c] = 0.0 + s_sum * multiplier
             else:
-                adjusted = float(new_nc + s_sum) * multiplier
-                new_nc = min(1, adjusted)
+                print("pushing non-class up")
+                adjusted = float(non_class_val + s_sum) * multiplier
+                new_nc[c] = min(1.0, adjusted)
+
+                if new_nc[c] > 0.999:
+                    class_targets[c] = 1.0 - s_sum * multiplier
 
     # REMEMBER .exp() for outputs to get to probability space for std dev because of log_softmax on forward
     # .log() to go back to logs
@@ -70,13 +80,8 @@ def sigma(class_targets: Dict[Tuple, float], nclass_target: float, outputs: Dict
 
 # ---------------- Registry ------------------- #
 
-class AdaptationStrategy(Enum):
-    BASE = "base"
-    SIGMA = "sigma"  # Add more as needed
-    # Example: ADVANCED = "advanced"
-
 ADAPTATION_REGISTRY = {
-    "base": base,  # Replace with actual function
+    "base": base,
     "sigma": sigma,
     # Add more strategies here
 }
