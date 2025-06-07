@@ -1,8 +1,6 @@
-from types import new_class
 from typing import Dict, Tuple, List
 import torch
 import numpy as np
-from enum import Enum
 
 
 # ------- Helpers ------- #
@@ -82,13 +80,8 @@ def sigma(class_targets: Dict[Tuple, float], nclass_targets: Dict[Tuple, float],
 
 # ---------------- Registry ------------------- #
 
-class AdaptationStrategy(Enum):
-    BASE = "base"
-    SIGMA = "sigma"  # Add more as needed
-    # Example: ADVANCED = "advanced"
-
 ADAPTATION_REGISTRY = {
-    "base": base,  # Replace with actual function
+    "base": base,
     "sigma": sigma,
     # Add more strategies here
 }
