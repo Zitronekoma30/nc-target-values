@@ -16,22 +16,21 @@ This project explores **dynamically optimizing** these values during training in
 
 ### 🧩 Implementation
 - [X] Implement basic σ-adaptation logic (only nc)
-- [ ] Implement more advanced σ-adaptation based techniques
-- [ ] Switch to using one non-class value for each class instead of one global one
+- [X] Switch to using one non-class value for each class instead of one global one
 - [X] Fix confidence calculation: Calculate cosine similarity of output vector to closest target vector (not necessarily the correct target)
 - [X] Log current class/non-class values
-- [ ] Test label noise to force overfitting
-- [ ] Test reduced train dataset to force overfitting
 - [X] Set up structured experiments and logging
 - [X] Build simple frontend for selecting method, starting and stopping training and displaying result in graph (maybe use "tensorboard" or "weights and biases")
 - [ ] try: During σ pushing don't immediately update nc, instead sum up all the up and down pushes to get a total push. This way every class value has an impact not just the first.
+- [ ] Find new ways of initializing class and non-class values
+  - [X] Uniform init (poor performance)
+  - [ ] Soft target init 
 
 ### 🧠 Algorithm Design
 - [ ] Refine the σ-adaptation strategy (tuning, edge cases)
 - [ ] Explore and prototype additional adaptation methods
-- [ ] Find strategies to minimize overfitting (regularization technqiues)
 
 ### 🔬 Research & Evaluation
-- [ ] Define evaluation metrics beyond accuracy/loss (e.g. training speed, confidence margin)
-- [ ] Analyze, visualize, and summarize results
+- [X] Define evaluation metrics beyond accuracy/loss (e.g. training speed, confidence margin)
+- [X] Analyze, visualize, and summarize results
 - [ ] Draft and outline the research paper
