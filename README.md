@@ -24,13 +24,16 @@ This project explores **dynamically optimizing** these values during training in
 - [ ] try: During σ pushing don't immediately update nc, instead sum up all the up and down pushes to get a total push. This way every class value has an impact not just the first.
 - [ ] Find new ways of initializing class and non-class values
   - [X] Uniform init (poor performance)
-  - [ ] Soft target init 
+  - [ ] Soft target init
+- [ ] Implement initial nudge for network preference init
+- [ ] Try pushing after each batch 
 
 ### 🧠 Algorithm Design
-- [ ] Refine the σ-adaptation strategy (tuning, edge cases)
-- [ ] Explore and prototype additional adaptation methods
+- [X] Refine the σ-adaptation strategy (tuning, edge cases)
+- [X] Explore and prototype additional adaptation methods
 
 ### 🔬 Research & Evaluation
 - [X] Define evaluation metrics beyond accuracy/loss (e.g. training speed, confidence margin)
 - [X] Analyze, visualize, and summarize results
-- [ ] Draft and outline the research paper
+- [X] Draft and outline the research paper
+- [ ] Finish paper
