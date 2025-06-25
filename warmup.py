@@ -14,7 +14,7 @@ def uniform(config, network=None, test_data=None, device=None, spacing=adaptatio
     
     return spacing(c_vals, nc_vals, {}, multiplier=config.first_push_multiplier)
 
-def average(config, network, test_data, device, spacing=adaptations.base):
+def average(config, network, test_data, device, spacing=adaptations.base) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
     """Find the naturally preferred values for each class as well as the non class value, returns their mean in p space"""
     network.eval()
     outputs = {}
@@ -37,6 +37,24 @@ def average(config, network, test_data, device, spacing=adaptations.base):
         # return np.log(1), c_means
         return spacing(c_means, nc_means, outputs, multiplier=config.first_push_multiplier)
 
+def average_nudge(config, network, test_data, device, spacing=adaptations.base, nudge=0.2):
+    non_class_values, class_values = average(config, network, test_data, device, spacing)
+    for c in class_values:
+        if non_class_values[c] > class_values[c]:
+            non_class_values[c] += nudge
+        else:
+            non_class_values[c] -= nudge
+
+        if non_class_values[c] <= 0:
+            non_class_values[c] = 0
+            class_values[c] = nudge
+        elif non_class_values[c] >= 1:
+            non_class_values[c] == 1
+            class_values[c] = 1 - nudge
+
+    return non_class_values, class_values
+
+
 def soft(config, network=None, test_data=None, device=None, spacing=adaptations.base):
     c_vals = {}
     nc_vals = {}
@@ -50,6 +68,7 @@ def soft(config, network=None, test_data=None, device=None, spacing=adaptations.
 PRETRAINING_REGISTRY = {
     "uniform": uniform,
     "average": average,
+    "average_nudge": average_nudge,
     "soft": soft,
     # Add more strategies here
 }
