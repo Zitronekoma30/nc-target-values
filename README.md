@@ -21,11 +21,11 @@ This project explores **dynamically optimizing** these values during training in
 - [X] Log current class/non-class values
 - [X] Set up structured experiments and logging
 - [X] Build simple frontend for selecting method, starting and stopping training and displaying result in graph (maybe use "tensorboard" or "weights and biases")
-- [ ] try: During σ pushing don't immediately update nc, instead sum up all the up and down pushes to get a total push. This way every class value has an impact not just the first.
 - [ ] Find new ways of initializing class and non-class values
   - [X] Uniform init (poor performance)
   - [ ] Soft target init
-- [ ] Implement initial nudge for network preference init
+  - [X] Implement initial nudge for network preference init
+  - [ ] Try taking all the initial preferences and remapping them to use the full (0,1) range
 - [ ] Try pushing after each batch 
 
 ### 🧠 Algorithm Design
