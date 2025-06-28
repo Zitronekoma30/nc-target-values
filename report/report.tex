@@ -86,14 +86,13 @@ Correspondence to: \\
 \pagenumbering{arabic}  %Better if TOC is variable (more than one page)
 \setcounter{page}{1}
 
-\abstract{}
-The aim of our project is to implement an alternative method of choosing target values for classification with neural networks.  Instead of using traditional one-hot encoding, which uses fixed values of 0 and 1, this method involves assigning custom target values to each class. 
+\abstract{The aim of our project is to implement an alternative method of choosing target values for classification with neural networks.  Instead of using traditional one-hot encoding, which uses fixed values of 0 and 1, this method involves assigning custom target values to each class. 
 
 These target values are dynamically optimized during the training process, which distinguishes our approach from conventional fixed-target training. Our idea is to capture the model's natural predictions and use these to refine the target values.
 
 This approach requires a new rule for determining the predicted class: rather than choosing the neuron with the highest value, we select the neuron whose output value is closest to its corresponding target value and therefore has the lowest error; a method we will refer to as "minimum distance classification".
 
-The goal of our project is to increase training efficiency while maintaining acceptable classification accuracy. To evaluate the performance of our approach, we will test it on the MNIST dataset and compare it with the one-hot encoding method.
+The goal of our project is to increase training efficiency while maintaining acceptable classification accuracy. To evaluate the performance of our approach, we will test it on the MNIST dataset and compare it with the one-hot encoding method.}
 
 \vspace{4em}
 
@@ -110,10 +109,57 @@ This change also calls for a rethinking of how predictions are interpreted. Inst
 
 Our hypothesis is that this method improves the training efficiency, while maintaining the classification accuracy. We empirically evaluate this method using the MNIST dataset, comparing its performance against the traditional one-hot encoding approach. \\
 
+
 \section{Methodology}
+In this section, we describe our approach to implementing dynamic target value optimization for neural network classification. First, we break down the concrete architecture of the target vectors used for training and classification. We then discuss how the class and non-class values that make up these target vectors are initially constructed and subsequently optimized dynamically during training.
+
 \subsection{Target Value Architecture}
+
+To establish our methodology clearly, we first review the traditional one-hot encoding approach before defining our alternative target value structure.
+
+\subsubsection{Traditional One-Hot Encoding}
+In standard classification with $C$ classes, the target vector $\mathbf{t}^{(i)}$ for a sample belonging to class $i$ is defined as:
+
+$$\mathbf{t}^{(i)} = [0, 0, \ldots, 0, \underbrace{1}_{i\text{-th position}}, 0, \ldots, 0]$$
+
+For example, with 3 classes, the target vectors are:
+$$\mathbf{t}^{(1)} = \begin{bmatrix} 1 \\ 0 \\ 0 \end{bmatrix}, \quad 
+\mathbf{t}^{(2)} = \begin{bmatrix} 0 \\ 1 \\ 0 \end{bmatrix}, \quad 
+\mathbf{t}^{(3)} = \begin{bmatrix} 0 \\ 0 \\ 1 \end{bmatrix}$$
+
+\subsubsection{Dynamic Target Value Structure}
+Our approach replaces the fixed values 0 and 1 with adaptive class and non-class values. For a classification problem with $C$ classes, we define:
+
+\begin{itemize}
+\item $c_i$: the class value for class i (replaces 1 in one-hot encoding)
+\item $\Bar{c}_i$: the non-class value for class i (replaces 0 in one-hot encoding)
+\end{itemize}
+
+The target vector $\mathbf{t}^{(i)}$ for class $i$ becomes:
+$$\mathbf{t}^{(i)} = [\Bar{c}_i, \Bar{c}_i, \ldots, \Bar{c}_i, \underbrace{c_i}_{i\text{-th position}}, \Bar{c}_i, \ldots, \Bar{c}_i]$$
+
+Using the same 3-class example:
+$$\mathbf{t}^{(1)} = \begin{bmatrix} c_1 \\ \Bar{c}_1 \\ \Bar{c}_1 \end{bmatrix}, \quad 
+\mathbf{t}^{(2)} = \begin{bmatrix} \Bar{c}_2 \\ c_2 \\ \Bar{c}_2 \end{bmatrix}, \quad 
+\mathbf{t}^{(3)} = \begin{bmatrix} \Bar{c}_3 \\ \Bar{c}_3 \\ c_3 \end{bmatrix}$$
+
+Importantly, in our implementation:
+\begin{itemize}
+\item Each class has its own class and non-class values $c_i$ and $\Bar{c}_i$
+\item All non-class values within a class are the same
+\item All non-class values $\Bar{c}_i$ (and in special cases class values) are optimized dynamically during training 
+\end{itemize}
+
+\subsection{Target Value Initialization and Optimization}
+Since a sample's classification depends on finding the nearest target vector to the network's output, we need target vectors that are reasonably well-separated from one another. Given our construction method, this separation can be achieved by ensuring that each class's class and non-class values are sufficiently spaced apart.
+
+Our approach accomplishes this through two stages: first, we select initial class and non-class values based on the network's natural output tendencies, and second, we dynamically increase the spacing between these values during training. This section describes both processes.
+
 \subsection{Initial Target Value Selection}
+Note: talk about different warmup methods but mention which one is best and that we will only go into detail on that one
+
 \subsection{Dynamic Target Optimization Algorithm}
+Note: Mention uni directional and bi directional sigma
 
 \section{Experimental Setup}
 
