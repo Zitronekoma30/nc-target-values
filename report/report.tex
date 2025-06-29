@@ -99,7 +99,7 @@ The goal of our project is to increase training efficiency while maintaining acc
 \section{Introduction}
 Artificial neural networks (ANNs) have become essential tools in modern classification tasks, mapping complex input data to discrete predefined output categories. During training, the error is calculated as the difference between the desired output and the actual output produced by the network. The objective of the training process is to minimize this error through iterative adjustments of the network's weights and biases. Following the training phase, performance is evaluated using a test set that contains previously unseen data, providing a neutral measure of its generalizability and classification accuracy. \\
 
-Traditionally, the learning process of such networks is based on one-hot encoded target values, where the correct class is represented by the value 1, and all others are assigned a 0. This binary approach became standard due to its simplicity and compatibility with widely used loss functions. However, enforcing these extreme target values could potentially lead to challenges depending on the system's underlying activation function. It may negatively affect gradient flow, reduce training efficiency, and encourage overconfident predictions.\\
+Traditionally, the learning process of such networks is based on one-hot encoded target values, where the correct class is represented by the value 1, and all others are assigned a 0. This binary approach became standard due to its simplicity and compatibility with widely used loss functions. However, enforcing these extreme target values could potentially lead to challenges depending on the system's underlying activation function. It may negatively affect gradient flow, reduce training efficiency, and encourage overconfident predictions. \\
 
 One-hot encoding enforces a "winner-takes-all" (WTA) dynamic, where only the neuron with the highest output is considered correct. Since the target vector consists of a 1 for the correct class and a 0 everywhere else, this is effectively equivalent to selecting the output that is closest to its respective target value. Thus, WTA can be seen as a special case of a more general strategy, which is known as nearest target or minimum distance classification. Here we make a general comparison between the entire output distribution given by the network and the available target vectors for each class. Whichever class's target the output is closest to (using a distance metric such as Euclidean distance) will be chosen as the correct class. \\
 
@@ -108,7 +108,6 @@ In this project, we propose a more flexible approach for target value assignment
 This change also calls for a rethinking of how predictions are interpreted. Instead of relying on the activation of the highest neuron to determine the predicted class as in WTA, we introduce a "nearest target classification" approach. We select the class whose output vector value is closest to the corresponding target vector, thereby minimizing the error. This nearest target classification strategy reflects the idea that a well-trained model should not necessarily produce a maximal value in any particular output neuron, but rather accurately match the overall desired response. \\
 
 Our hypothesis is that this method improves the training efficiency, while maintaining the classification accuracy. We empirically evaluate this method using the MNIST dataset, comparing its performance against the traditional one-hot encoding approach. \\
-
 
 \section{Methodology}
 In this section, we describe our approach to implementing dynamic target value optimization for neural network classification. First, we break down the concrete architecture of the target vectors used for training and classification. We then discuss how the class and non-class values that make up these target vectors are initially constructed and subsequently optimized dynamically during training.
@@ -147,7 +146,7 @@ Importantly, in our implementation:
 \begin{itemize}
 \item Each class has its own class and non-class values $c_i$ and $\Bar{c}_i$
 \item All non-class values within a class are the same
-\item All non-class values $\Bar{c}_i$ (and in special cases class values) are optimized dynamically during training 
+\item All non-class values $\Bar{c}_i$ (and in special cases class values) are optimized dynamically during training
 \end{itemize}
 
 \subsection{Target Value Initialization and Optimization}
@@ -156,10 +155,24 @@ Since a sample's classification depends on finding the nearest target vector to 
 Our approach accomplishes this through two stages: first, we select initial class and non-class values based on the network's natural output tendencies, and second, we dynamically increase the spacing between these values during training. This section describes both processes.
 
 \subsection{Initial Target Value Selection}
-Note: talk about different warmup methods but mention which one is best and that we will only go into detail on that one
+The key challenge in selecting the initial class and non-class values is balancing two competing requirements: the values should reflect the model's innate output tendencies rather than being chosen arbitrarily, while also providing a distribution that enables sufficient separation, either initially or through the subsequent optimization process.
+
+We explored several strategies to achieve this balance:
+\begin{itemize}
+    \item Uniform...
+    \item Soft...
+    \item Pref...
+    \item Redistributed Pref...
+\end{itemize}
+
+Based on our experiments we found that the [...] approach yielded the best results.
+
+\vspace{2em}
+
+Explain best warm-up method...
 
 \subsection{Dynamic Target Optimization Algorithm}
-Note: Mention uni directional and bi directional sigma
+Note: Mention uni directional and bi directional sigma...
 
 \section{Experimental Setup}
 
