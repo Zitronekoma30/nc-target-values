@@ -1,5 +1,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
+
+torch.cuda.is_available = lambda: False
 
 class Cnn(nn.Module):
     def __init__(self, init_bounds=(0.0, 1.0)):

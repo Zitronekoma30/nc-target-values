@@ -12,6 +12,7 @@ def parse_args():
     parser.add_argument('--batch-size-train', type=int, default=64)
     parser.add_argument('--batch-size-test', type=int, default=1000)
     parser.add_argument('--learning-rate', type=float, default=0.01)
+    parser.add_argument('--nudge', type=float, default=0.2)
     parser.add_argument('--momentum', type=float, default=0.5)
     parser.add_argument('--log-interval', type=int, default=10)
     parser.add_argument('--seed', type=int, default=1)

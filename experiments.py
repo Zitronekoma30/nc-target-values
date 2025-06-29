@@ -154,7 +154,8 @@ def run_experiment(model, train_data, test_data, config):
         network=model,
         test_data=test_data,
         device=device,
-        spacing=adaptation
+        spacing=adaptation,
+        nudge=config.nudge
     )
     test(model, test_data, config, run, nc=nc, c=c, epoch=1, targets=config.targets)
     for epoch in range(1, config.epochs + 1):

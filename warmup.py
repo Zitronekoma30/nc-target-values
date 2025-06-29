@@ -1,10 +1,10 @@
 import numpy as np
 import adaptations
-from typing import Tuple, Dict, Callable
+from typing import Tuple, Dict, Callable, List
 import utils
 import torch
 
-def uniform(config, network=None, test_data=None, device=None, spacing=adaptations.base):
+def uniform(config, network=None, test_data=None, device=None, spacing=adaptations.base, nudge=2.0):
     c_vals = {}
     nc_vals = {}
     
@@ -14,7 +14,7 @@ def uniform(config, network=None, test_data=None, device=None, spacing=adaptatio
     
     return spacing(c_vals, nc_vals, {}, multiplier=config.first_push_multiplier)
 
-def average(config, network, test_data, device, spacing=adaptations.base) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
+def average(config, network, test_data, device, spacing=adaptations.base, nudge=2.0) -> Tuple[Dict[Tuple, float], Dict[Tuple, float]]:
     """Find the naturally preferred values for each class as well as the non class value, returns their mean in p space"""
     network.eval()
     outputs = {}
@@ -49,13 +49,27 @@ def average_nudge(config, network, test_data, device, spacing=adaptations.base, 
             non_class_values[c] = 0
             class_values[c] = nudge
         elif non_class_values[c] >= 1:
-            non_class_values[c] == 1
+            non_class_values[c] = 1
             class_values[c] = 1 - nudge
 
     return non_class_values, class_values
 
 
-def soft(config, network=None, test_data=None, device=None, spacing=adaptations.base):
+def average_nudge_remap(config, network, test_data, device, spacing=adaptations.base, nudge=0.2):
+    non_class_values, class_values = average_nudge(config, network, test_data, device, spacing, nudge)
+
+    all_vals: List[float] = list(non_class_values.values()) + list(class_values.values())
+    all_vals.sort()
+
+    scaling_factor = 1/all_vals[-1]
+
+    for c in class_values:
+        class_values[c] = class_values[c] * scaling_factor
+        non_class_values[c] = non_class_values[c] * scaling_factor
+
+    return non_class_values, class_values
+
+def soft(config, network=None, test_data=None, device=None, spacing=adaptations.base, nudge=2.0):
     c_vals = {}
     nc_vals = {}
     
@@ -69,6 +83,7 @@ PRETRAINING_REGISTRY = {
     "uniform": uniform,
     "average": average,
     "average_nudge": average_nudge,
+    "average_nudge_remap": average_nudge_remap,
     "soft": soft,
     # Add more strategies here
 }
