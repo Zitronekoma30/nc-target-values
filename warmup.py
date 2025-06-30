@@ -47,10 +47,10 @@ def average_nudge(config, network, test_data, device, spacing=adaptations.base, 
 
         if non_class_values[c] <= 0:
             non_class_values[c] = 0
-            class_values[c] = nudge
+            class_values[c] = min(nudge, 1)
         elif non_class_values[c] >= 1:
             non_class_values[c] = 1
-            class_values[c] = 1 - nudge
+            class_values[c] = max(1 - nudge, 0)
 
     return non_class_values, class_values
 
