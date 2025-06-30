@@ -12,6 +12,10 @@
 \usepackage{fancyhdr}
 \usepackage[english]{babel}
 \usepackage[latin1]{inputenc}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\documentclass{article}
+
 
 \textheight 680pt
 \textwidth 460pt
@@ -160,27 +164,133 @@ Our approach accomplishes this through two stages: first, we select initial clas
 The key challenge in selecting the initial class and non-class values is balancing two competing requirements: the values should reflect the model's innate output tendencies rather than being chosen arbitrarily, while also providing a distribution that enables sufficient separation, either initially or through the subsequent optimization process.
 
 We explored several strategies to achieve this balance:
-\begin{itemize}
-    \item Uniform...
-    \item Soft...
-    \item Pref...
-    \item Redistributed Pref...
-\end{itemize}
+\begin{enumerate}
+    \item Uniform distribution of class and non-class values
+    \item Traditional soft targets (e.g.: $0.8$ and $0.2$)
+    \item Mean of untrained-network predictions
+    \item Remapping the untrained output means to use the full $(0,1)$ range
+\end{enumerate}
 
-Based on our experiments we found that the [...] approach yielded the best results.
+After experimenting with these approaches we discovered that these largely lead to predictions which are no better than random guessing, with the notable exception of the second approach, which we will cover more in the results section. Through further discussion and experimentation, we settled on an altered version of the third approach. 
 
 \vspace{2em}
+This approach closely resembled the third approach, but substitutes it by slightly nudging the resulting class and non-class values to increase the initial separation. 
 
-Explain best warm-up method...
+\begin{algorithm}
+\caption{Adaptive Target Value Computation}
+\label{alg:adaptive_threshold}
+\begin{algorithmic}[1]
+\REQUIRE Network $\mathcal{N}$, test data $\mathcal{D}_{test}$, spacing function, nudge value $\epsilon$
+\ENSURE Adjusted non-class and class threshold values for each class
+
+\STATE \textbf{// Compute mean activations for each class}
+\FOR{each $(data, target)$ in $\mathcal{D}_{test}$}
+    \STATE $output \leftarrow \mathcal{N}(data)$
+    \STATE Group outputs by class: add to $outputs[target]$
+\ENDFOR
+
+\STATE Extract class and non-class activation values: $(nc\_vals, c\_vals) \leftarrow$ partition$(outputs)$
+
+\FOR{each class $c$}
+    \STATE $c\_means[c] \leftarrow$ mean$(c\_vals[c])$
+    \STATE $nc\_means[c] \leftarrow$ mean$(nc\_vals[c])$
+\ENDFOR
+
+\STATE \textbf{// Apply spacing function to determine initial thresholds}
+\STATE $(non\_class\_values, class\_values) \leftarrow$ spacing$(c\_means, nc\_means)$
+
+\STATE \textbf{// Apply nudge adjustments for better separation}
+
+\FOR{each class $c$}
+    \IF{$non\_class\_values[c] > class\_values[c]$}
+        \STATE $non\_class\_values[c] \leftarrow non\_class\_values[c] + \epsilon$
+    \ELSE
+        \STATE $non\_class\_values[c] \leftarrow non\_class\_values[c] - \epsilon$
+    \ENDIF
+    
+    \STATE \textbf{// Enforce bounds [0,1] with compensatory adjustments}
+    \IF{$non\_class\_values[c] \leq 0$}
+        \STATE $non\_class\_values[c] \leftarrow 0$
+        \STATE $class\_values[c] \leftarrow \min(\epsilon, 1)$
+    \ELSIF{$non\_class\_values[c] \geq 1$}
+        \STATE $non\_class\_values[c] \leftarrow 1$
+        \STATE $class\_values[c] \leftarrow \max(1 - \epsilon, 0)$
+    \ENDIF
+\ENDFOR
+
+\RETURN $(non\_class\_values, class\_values)$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:adaptive_threshold} begins by running a full test epoch through the network and storing the activation outputs grouped by class. For each class $i$, the mean activation in that class's designated output neuron across all samples of class $i$ becomes the class value $c_i$, while the non-class value $\Bar{c}_i$ is computed as the mean activation across all other output neurons for samples of that same class.
+
+This process typically results in densely packed threshold values that provide insufficient separation for effective classification. To address this, the method first applies the chosen spacing function (detailed in the next section) to establish initial thresholds, then further separates the class and non-class values by applying small nudge adjustments of magnitude $\epsilon$. The nudging direction depends on the relative positioning of the values: if non-class values exceed class values, we increase the non-class threshold; otherwise, we decrease it. Boundary enforcement ensures that all values remain within $(0,1)$ while maintaining meaningful separation.
 
 \subsection{Dynamic Target Optimization Algorithm}
-Note: Mention uni directional and bi directional sigma...
+While the target values created by the algorithm \ref{alg:adaptive_threshold} are, according to our criteria, based on the innate tendencies of the models and are somewhat well separated there are two issues with the targets generated by this approach.
+\begin{enumerate}
+    \item As the network learns, the target values will quickly lose any relation to the networks innate output tendencies.
+    \item The value's separation depends greatly on the chosen $\epsilon$. Small values of $\epsilon$ result in target values that rarely exceed a range of $(0, 0.3)$, likely because the underlying network outputs are compressed by the softmax function before averaging.
+\end{enumerate}
+To address these limitations we continuously adapt these generated target values as training progresses, using a method we have come to call "sigma spacing". 
+
+Algorithm~\ref{alg:sigma_spacing} implements this approach by replacing the fixed nudge parameter $\epsilon$ with a dynamic separation criterion based on the standard deviation of current network outputs.
+
+Rather than relying on static target values computed from the initial untrained network, sigma spacing recomputes separation requirements after each training epoch using $\sigma_{sum}$, the sum of standard deviations across current outputs. This is meant to ensure that target values remain relevant as the network's behavior evolves during training. Additionally, by scaling adjustments according to the actual variability in network outputs, the method automatically adapts to the compressed range typical of softmax-normalized activations.
+
+\begin{algorithm}
+\caption{Standard Deviation-Based Threshold Adjustment}
+\label{alg:sigma_spacing}
+\begin{algorithmic}[1]
+\REQUIRE Class values $class\_values$, non-class values $non\_class\_values$, scaling factor $\lambda$ (default = 1)
+\ENSURE Adjusted threshold values with minimum separation guarantee
+
+\STATE \textbf{// Compute variability measure}
+\STATE $\sigma_{sum} \leftarrow$ sum of standard deviations across all current outputs
+
+\FOR{each class $c$}
+    \STATE \textbf{// Check separation requirement}
+    \IF{$|class\_values[c] - non\_class\_values[c]| < \sigma_{sum}$}
+        \STATE \textbf{// Adjust non-class value based on relative positioning}
+        \IF{$non\_class\_values[c] \geq class\_values[c]$}
+            \STATE $non\_class\_values[c] \leftarrow non\_class\_values[c] + \lambda \sigma_{sum}$
+        \ELSE
+            \STATE $non\_class\_values[c] \leftarrow non\_class\_values[c] - \lambda \sigma_{sum}$
+        \ENDIF
+        
+        \STATE \textbf{// Handle boundary violations with compensation}
+        \IF{$non\_class\_values[c] > 1$}
+            \STATE $excess \leftarrow non\_class\_values[c] - 1$
+            \STATE $non\_class\_values[c] \leftarrow 1$
+            \STATE $class\_values[c] \leftarrow \max(0, class\_values[c] - excess)$
+        \ELSIF{$non\_class\_values[c] < 0$}
+            \STATE $deficit \leftarrow |non\_class\_values[c]|$
+            \STATE $non\_class\_values[c] \leftarrow 0$
+            \STATE $class\_values[c] \leftarrow \min(1, class\_values[c] + deficit)$
+        \ENDIF
+    \ENDIF
+    
+    \STATE \textbf{// Final bounds enforcement}
+    \STATE $class\_values[c] \leftarrow \text{clip}(class\_values[c], 0, 1)$
+    \STATE $non\_class\_values[c] \leftarrow \text{clip}(non\_class\_values[c], 0, 1)$
+\ENDFOR
+
+\RETURN $(non\_class\_values, class\_values)$
+\end{algorithmic}
+\end{algorithm}
+
+
+
+
+% Note: Mention unidirectional and bidirectional sigma...
 
 \section{Experimental Setup}
 
 \section{Results and Analysis}
 
-\section{Discussion and Conclusion}
+\section{Discussion and Potential Next Steps}
+
+\section{Conclusion}
 
 \newpage
 
