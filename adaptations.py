@@ -2,8 +2,20 @@ from typing import Dict, Tuple, List
 import torch
 import numpy as np
 
+RUN = None
+epoch = 0
 
 # ------- Helpers ------- #
+def set_run(run):
+    global RUN
+    print("RUN set")
+    RUN = run
+    
+def set_epoch(e):
+    global epoch
+    print("epoch set")
+    epoch = e
+    
 def extract_vals(outputs: Dict[Tuple, Tuple]) -> Tuple[Dict[Tuple, List], Dict[Tuple, List]]:
     """Extracts all class and non-class values grouped by class from outputs dict in log p. Returns values in probability space."""
     nc_vals: Dict[Tuple, List] = {}
@@ -46,9 +58,16 @@ def sigma(class_targets: Dict[Tuple, float], nclass_targets: Dict[Tuple, float],
     for c in c_o.keys():
         std_devs_c[c] = float(np.std(c_o[c]))
         std_devs_nc[c] = float(np.std(nc_o[c]))
-
+        
         means_c[c] = float(np.mean(c_o[c]))
         means_nc[c] = float(np.mean(nc_o[c]))
+   
+    print("checking if run is avail")
+    if RUN is not None:
+        print("logging sigma sum")
+        for c in std_devs_c:
+            class_num = c.index(1)            
+            RUN.log({"epoch": epoch, f"sigma_sum({class_num})": std_devs_c[c] + std_devs_nc[c]})
 
     for c in std_devs_c:
         s_sum = std_devs_c[c] + std_devs_nc[c]

@@ -79,6 +79,7 @@ def test(network, test_data, config, run, nc, c, epoch=0.0, targets="dynamic"):
         "epoch": epoch
     })
 
+    adaptations.set_epoch(epoch)
 
     test_loss = 0
     total_confidence = 0.0
@@ -143,6 +144,7 @@ def test(network, test_data, config, run, nc, c, epoch=0.0, targets="dynamic"):
 
 def run_experiment(model, train_data, test_data, config):
     run = create_run(config)
+    adaptations.set_run(run)
     adaptation: Callable = adaptations.ADAPTATION_REGISTRY[config.adaptation]
 
     model = model.to(device)
