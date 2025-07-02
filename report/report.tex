@@ -115,6 +115,8 @@ This change also calls for a rethinking of how predictions are interpreted. Inst
 
 Our hypothesis is that this method improves the training efficiency, while maintaining the classification accuracy. We empirically evaluate this method using the MNIST dataset, comparing its performance against the traditional one-hot encoding approach. \\
 
+\section{Classification with Artificial Neural Networks} % Grundkonzept erklären, was findet ein classification ANN (linearly seperating hyperplane), wie findet es diese? Evtl. ein Bild
+
 \section{Methodology}
 In this section, we describe our approach to implementing dynamic target value optimization for neural network classification. First, we break down the concrete architecture of the target vectors used for training and classification. We then discuss how the class and non-class values that make up these target vectors are initially constructed and subsequently optimized dynamically during training.
 
@@ -238,7 +240,7 @@ Algorithm~\ref{alg:sigma_spacing} implements this approach by replacing the fixe
 
 Rather than relying on static target values computed from the initial untrained network, sigma spacing recomputes separation requirements after each training epoch using $\sigma_{sum}$, the sum of standard deviations across current outputs. This is meant to ensure that target values remain relevant as the network's behavior evolves during training. Additionally, by scaling adjustments according to the actual variability in network outputs, the method automatically adapts to the compressed range typical of softmax-normalized activations.
 
-\begin{algorithm}
+\begin{algorithm}[H]
 \caption{Standard Deviation-Based Threshold Adjustment}
 \label{alg:sigma_spacing}
 \begin{algorithmic}[1]
@@ -285,6 +287,47 @@ Rather than relying on static target values computed from the initial untrained 
 % Note: Mention unidirectional and bidirectional sigma...
 
 \section{Experimental Setup}
+ Our experimental setup is designed to evaluate the performance of our dynamic target value optimization method against traditional one-hot encoding and soft-target baselines. All experiments are conducted on the MNIST dataset.
+
+ \subsection{Dataset and Preprocessing}
+ We used the standard MNIST dataset, which consists of 60,000 training images and 10,000 test images of handwritten digits (0-9). The images are normalized using a mean of 0.1307 and a standard deviation of 0.3081, which are the standard values for this dataset.
+
+ \subsection{Network Architecture}
+All experiments use the same Convolutional Neural Network (CNN), implemented in PyTorch.
+
+ \begin{itemize}
+     \item An initial convolutional layer with 1 input channel, 10 output channels, and a kernel size of 5.
+     \item A second convolutional layer with 10 input channels, 20 output channels, and a kernel size of 5. A dropout layer is applied after this convolution.
+     \item A fully connected layer with 320 input features and 50 output features.
+     \item A final fully connected layer with 50 input features and 10 output features, corresponding to the 10 digit classes.
+ \end{itemize}
+ The network uses Sigmoid activation functions after the convolutional and first fully connected layers, and a log-softmax activation function on the output layer.
+
+ \subsection{Training Parameters}
+ The training process is configured with the following hyperparameters:
+ \begin{itemize}
+     \item \textbf{Epochs:} The number of training epochs is configurable, but typically set to 4 for our experiments.
+     \item \textbf{Batch Size:} We use a batch size of 64 for training and 1000 for testing.
+     \item \textbf{Optimizer:} Stochastic Gradient Descent (SGD) is used as the optimizer, with a learning rate of 0.01 and momentum of 0.5.
+     \item \textbf{Loss Function:} The loss is calculated using the Negative Log-Likelihood Loss (NLLLoss) between the network's log-softmax output and the target vectors.
+ \end{itemize}
+
+ \subsection{Target Value Strategies}
+ We compare three different target value strategies:
+ \begin{enumerate}
+     \item \textbf{One-Hot Encoding:} The traditional approach where the target vector for the correct class contains a 1 at the corresponding index and 0s elsewhere.
+     \item \textbf{Soft Targets:} A variation where the target for the correct class is set to 0.8 and the targets for all other classes are set to 0.2.
+     \item \textbf{Dynamic Targets:} Our proposed method, where the class and non-class target values are initialized and then dynamically adjusted during training using the "sigma spacing" adaptation method. The initial values are determined by the mean activations of the untrained network on the test set, with a small "nudge" of 0.2 applied for initial separation.
+ \end{enumerate}
+
+ \subsection{Evaluation Metrics}
+ The performance of each strategy is evaluated based on the following metrics, which are logged using Weights \& Biases:
+ \begin{itemize}
+     \item \textbf{Hard Accuracy:} The percentage of correctly classified images. For the dynamic target method, classification is determined by the nearest target vector, not the maximum output value.
+     \item \textbf{Test Loss:} The average NLLLoss on the test set.
+     \item \textbf{Confidence:} The average cosine similarity between the network's output and the target vector of the predicted class.
+     \item \textbf{Target Value Separation:} For the dynamic target method, we track the absolute difference between the class and non-class target values for each class, as well as the average, minimum, and maximum separation across all classes.
+ \end{itemize}
 
 \section{Results and Analysis}
 
