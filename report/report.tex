@@ -406,13 +406,37 @@ Where Figure~\ref{fig:dyn_loss} clearly shows the loss of our approaches decreas
 While this "moving target" explanation could potentially contribute to the issue, the target values do eventually stabilize around epoch 10 (Figure~\ref{fig:accvsep}). This indicates that there exists some more profound issue with (this interpretation of) the sigma spacing approach, which drives class and non-class values into positions which are fundamentally unsuitable for effective classification.
 
 \subsection{Target Value Dynamics and Their Impact}
-While the sigma spacing approach's low accuracy and high confidence provide little hope for the methods' usefulness, the baseline median-nudge initialized approach without spacing exhibits a more salvageable accuracy / confidence ratio, potentially indicating some merit in the approach if it is developed further.
+While the sigma spacing approach's low accuracy and high confidence provide little hope for the methods' usefulness, the median-nudge initialization approach (without spacing) exhibits a more salvageable accuracy / confidence ratio.
 
-Similar techniques exist, %... go on to talk about dynamically generated soft targets
+The concept of adapting the labels according to some external factor is not entirely novel, for example in adaptive label smoothing, where the smoothing factor is determined by a property of the input data \cite{krothapalli_adaptive_2020}. Despite this, assigning labels solely based on the untrained network's output is an unexplored field that could use more study. 
 
 \subsection{Implications for Future Work}
+There are a number of possible next steps that could be helpful in enhancing the efficacy of these methods. We will briefly outline possible areas of interest for further research in this area.
 
-\section{Conclusion}
+\subsection{Mean-Nudge Initialization}
+The mean-nudge initialization pretraining approach, while being the most usable option out of our tested approaches, is still underperforming when compared to established techniques like one-hot encoded targets. We will suggest two potential improvements.
+\begin{itemize}
+    \item Remapped-mean-nudge initialization: Since our current approach initializes the class and non-class values based on their observed means over the outputs for all samples of that particular class, our initial values fall only within a range that is typical of the softmax function applied to our model's output. As such, initial values have essentially no chance of exceeding $\sim 0.3$, despite the available range of values spanning the entirety of (0,1). It may be worth attempting to scale the initial class and non-class values to make more adequate use of the available range. While this could lead to better separated targets, it may also weaken the relation between the class and non-class values and the actual preferences of the network.
+    \item Late initialization: While our proposed initialization method is applied entirely before the network is trained, it may be useful to generate these targets using a lightly trained network to extract more meaningful output preferences. The motivation is that even one or two epochs of training with traditional one-hot targets may encourage the network to form preferences more closely aligned with the classification task, though this may also introduce or reinforce unwanted biases.
+\end{itemize}
+
+\subsection{Sigma Spacing}
+Since our implementation of sigma spacing had no positive impact on training, it may be useful to reevaluate some basic assumptions underlying our implementation. The way we have defined class and non-class values, while intuitive, may not be too abstract to accurately encode the network's actual preferences. Shifting from a one class value and one non-class value per class approach, to a one class and non-class value per neuron approach may or may not improve the effectiveness of the sigma spacing approach. Although this direction is speculative and lacks strong theoretical grounding at this stage, exploring such a reframing may still yield useful insights or unexpected improvements.
+
+\section{Summary and Conclusion}
+In this project, we explored an alternative method to one-hot encoding for initializing target values in neural network classification tasks, by assigning custom target values which depend on the models' untrained outputs and dynamically evolving them throughout training. This involved two main innovations:
+\begin{itemize}
+    \item Mean-nudge initialization: inferring initial target values from the network's own output before training.
+    \item Sigma spacing: adjusting these values during training based on the network's output variance. 
+\end{itemize}
+
+\subsection{Findings}
+Our main findings included an overall lack of viable performance across both our approaches when compared to traditional methods. Here the mean-nudge initialization method shows some promise if developed further, while the sigma spacing approach seems to suffer from several foundational issues which may require a rethinking of the underlying approach to be addressed adequately.
+
+\subsection{Conclusion}
+The idea of capturing the network's preferences remains interesting, but our methods may oversimplify the dynamics of the problem. While some parts of our approach seem to fall just short of being useful, other parts require more careful reconsideration.
+
+Future works could focus on applying our existing sigma spacing approach to values generated using different assumptions about how to extract the "preferences" of the neural network, or attempt to improve the initialization method itself by making better use of the available value interval (0,1).
 
 % links go here, NOT in references
 \section{Links}
@@ -425,6 +449,7 @@ Similar techniques exist, %... go on to talk about dynamically generated soft ta
 \end{itemize}
 
 % real scientific references
-\bibliography{}		% .bib files here
+\bibliographystyle{plain}
+\bibliography{references}		% .bib files here
 
 \end{document}
