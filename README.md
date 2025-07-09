@@ -6,7 +6,7 @@ When training a classification neural network, each output neuron represents a c
 
 These values (class = 1, non-class = 0) are compared to the network's output to compute the loss and update the weights.
 
-However, using fixed values like `1` and `0` may not always yield optimal learning. Adjusting the **class** and **non-class** target values (e.g., `0.8` and `0.2`) can improve training performance—especially with activation functions like sigmoid—by enhancing gradient flow.
+However, using fixed values like `1` and `0` may not always yield optimal learning. Adjusting the **class** and **non-class** target values (e.g., `0.8` and `0.2`) can improve training performance (especially with activation functions like sigmoid) by enhancing gradient flow.
 
 This project explores **dynamically optimizing** these values during training instead of using fixed constants. Early results show improvements in training speed and confidence, though gains in test accuracy are yet to be achieved.
 
