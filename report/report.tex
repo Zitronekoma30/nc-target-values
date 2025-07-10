@@ -14,7 +14,6 @@
 \usepackage[latin1]{inputenc}
 \usepackage{algorithm}
 \usepackage{algorithmic}
-\documentclass{article}
 
 
 \textheight 680pt
@@ -115,7 +114,75 @@ This change also calls for a rethinking of how predictions are interpreted. Inst
 
 Our hypothesis is that this method improves the training efficiency, while maintaining the classification accuracy. We empirically evaluate this method using the MNIST dataset, comparing its performance against the traditional one-hot encoding approach. \\
 
-\section{Classification with Artificial Neural Networks} % Grundkonzept erklären, was findet ein classification ANN (linearly seperating hyperplane), wie findet es diese? Evtl. ein Bild
+\section{Classification with Artificial Neural Networks}
+ANNs are computational models inspired by the functioning and structure of the human brain, designed to simulate the way biological neurons process information. These networks serve as a powerful tool in complex pattern recognition and play a fundamental role in solving machine learning problems.  In this section, we provide an overview of Artificial Neural Networks exploring their basic architecture and functionality, while also giving insight on their application in classification tasks.
+
+\subsection{Structure of Artificial Neural Networks}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.56\linewidth]{graphs/annStructure.jpg}
+    \caption{Network structure for training ANN models  \cite{FHWA}}
+    \label{fig:annStruct}
+\end{figure}
+
+An Artificial Neural Network consists of a multitude of interconnected nodes, or neurons, organized into layers. Each layer is designed to process input data and pass the resulting output signals to the following. To achieve this, each neuron receives one or more inputs, applies respective weights and a bias, and then forwards the result through an activation function. Typically, a Neural Network is composed of three types of layers, as also visualized in Figure \ref{fig:annStruct}:
+
+\begin{itemize}
+     \item \textbf{Input Layer:} The input layer is the first layer of the network and is responsible for receiving the raw input data. Each neuron in this layer represents a specific feature of the input. For example, in an image classification task each input neuron corresponds to a single pixel of the given image.
+     \item \textbf{Hidden Layers:} The Hidden layers are located between the input and output layer. Most of the actual computation takes place here. The neurons in these layers take the output of the previous layer as input, process this information and send their output to the next layer. The number and size of the hidden layers vary depending on the complexity of the problem and the depth of the network.
+     \item \textbf{Output Layer:} This concluding layer produces the networks's final output. In a classification task, the output layer usually consists of one neuron per possible class, with each neurons's output representing the network's predicition for the corresponding class.
+\end{itemize}
+
+Each neuron in a layer is connected to every neuron in the previous and the following layer, creating a fully connected, dense network. These connections are defined by the weights, which are adjusted during the training process.
+
+
+\subsection{Inner Workings of a Neuron}
+The process by which a neuron works can be described by the following two steps:
+ \begin{enumerate}
+ \item \textbf{Aggregation Function:} Each neuron receives one or more input signals. Within input layers these signals correspond to raw data, whereas in the case of hidden layers they originate from the outputs of the previous layer. Inter alia, the obtained data contains information on the corresponding weights and bias. The weights determine the strength of the connection between two neurons. During training the weights are adjusted accordingly, further explained in chapter 2.3 \textit{Training Process}. The bias is used to shift the activation function to improve the learning process. 
+Now the aggregation function, which is used to calculate the weighted sum of the given inputs by multiplying each input value by its corresponding weight, adding the bias and summing up the products, is applied. The weighted sum $z$ of a neuron can be computed as follows, where $x_i$ denotes the inputs, $w_i$ the weights and $b$ the bias: \\
+\item[]\vspace{-0.5cm}\hspace{2cm}$z_i = \sum_{i=1}^n x_i* w_i +b$
+
+ \item \textbf{Activation Function:} In the next step, the weighted sum $z_i$ is passed through the activation function. This function introduces non-linearity into the network, which enables the system to recognize, learn and model complex non-linear patterns. The final output of the neuron in the layer is the result of the activation function applied to the weighted sum of its inputs. Two commonly used activation function, which were also applied in this project (see chapter 4.2 \textit{Network Architecture}), are the Sigmoid- and the Softmax-activation function. They are defined as follows:
+\begin{itemize}
+\item \textbf{Sigmoid-activation function:} The Sigmoid function maps any input to a value between 0 and 1, making it ideal for binary classification problems. 
+\item[]\hspace{1.25cm}$\Rightarrow \sigma(z_i)=\frac{1}{1+e^{-z}}$
+
+\item \textbf{Softmax-activation function:} The Softmax function converts the raw output into a probability distribution across all k classes and is therefore often used in the output layer of classification networks.
+\item[]\hspace{1.25cm}$\Rightarrow Softmax(z_i)=\frac{e^{z_i}}{\sum_{j=1}^{k} e^{z_j}}$
+\end{itemize}
+\end{enumerate}
+
+\subsection{Training Process} 
+The objective of the training process in an ANN is to adjust the network's weights and biases to minimize the error between the actual output and the target values. This is achieved through a method called backpropagation. In this process the network iteratively updates its parameters using the gradients of the loss function with respect to each weight and bias in the direction that reduces the error. The loss function guides the optimization process by quantifying the difference between the predicted and the generated outputs. One commonly used loss function in classification tasks is the negative Log-Likelihood loss (NLL). This function measures the difference between the network's predicted probability distribution given by the log softmax function and the target vectors. The NLL is defined with $y_i$ denoting the target vector, $\hat{y_i}$ the generated proability distibution and M the number of classes as: \\
+
+\vspace{-0.5cm}\hspace{2cm}$ NLL(z_i)=-\sum_{j=1}^{M} y_i ~ log~ \hat{y_i}$
+
+\subsection{Convolutional Neural Networks}
+A Convolutional Neural Network (CNN) is a specialized type of Artificial Neural Network, designed for systems needing object detection, segmentation and recognition, such as image classification networks. The key difference between CNNs and traditional ANNs lies in their architecture. CNNs use convolutional layers to automatically detect sigificant patterns at different levels of abstraction like edges, textures or shapes, directly from the raw input data, eliminating the need for manual feature extraction.
+The architecture of a CNN typically consists of these three layer types:
+\begin{itemize}
+\item\textbf{Convolutional Layers:} These layers are the core components of CNNs. A convolutional layer applies filters, also known as kernels, to the input data performing a convolution operation that extracts the specific attributes. Each filter detects a different feature, like an edge or texture, in a small region of the input and generates a feature map that indicates the presence and strength of the corresponding feature within the input image. After convolution, the output is passed through an activation function, analog to the ANN structure.
+
+\item\textbf{Pooling Layers:} Pooling layers are typically placed after convolutional layers. They reduce the spatial dimensions of the feature maps by extracting the most important information, which also helps reducing the computational load. Common pooling methods include max-pooling and average-pooling.
+
+\item\textbf{Fully Connected Layers:} After several convolutional and pooling layers the network typically includes one or more fully connected layers. In these layers each neuron is connected to every neuron in the previous layer. They are typically used to hierarchically combine the extracted features and make the final prediction or classification.
+\end{itemize}
+
+\subsection{Classification Mechanisms}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{graphs/hyperplane.png}
+    \caption{Illustration of hyperplanes in differnet dimensions \cite{Hyperplane}}
+    \label{fig:hyperplane}
+\end{figure}
+
+In Artificial Neural Networks classification refers to the process of assigning given input values to one of several predefined classes based on specific patterns within the data. A key goal of a classification network is to find a decision boundary that can separate discrete regions corresponding to each class. ANNs find decision boundaries through an iterative process of training and adjusting the weights and biases accordingly to minimize classification error by using backporpagation. After the training phase, the network uses the learned decision boundary to classify unseen data points. The classification process can be broken down into three main steps: First, the input data is passed through the input layer, where each neuron represents a feature of the data. Next, the network processes the data through the hidden layers, where relevant features are extracted, using weighted sums, biases and activation functions. Finally, the processed data reaches the output layer, where the network assigns a class based on the neuron with the highest output value, providing the network's ultimate prediction.
+
+To achieve the correct class assignment, the network tries to find a hyperplane, a line in a two-dimensional space or a plane in higher dimensions, that best separates the data points into distinct classes (illustrated in Figure \ref{fig:hyperplane}). The decision boundary is typically a mathematical function, in which the input features are weighted, summed and passed through an activation function. If the output exceeds a certain threshold, the data point is classified as one class, otherwise it is classified into another.
+
+However, when the data is not linearly separable, meaning a single straight line cannot separate the classes, the network uses multiple layers to create more complex non-linear decision boundaries. These non-linear boundaries are formed by stacking hidden layers and applying non-linear activation functions. Each layer learns progressively higher-level features of the data, allowing the network to model more complex patterns and therefore make more accurate desicions in classification tasks.
 
 \section{Methodology}
 In this section, we describe our approach to implementing dynamic target value optimization for neural network classification. First, we break down the concrete architecture of the target vectors used for training and classification. We then discuss how the class and non-class values that make up these target vectors are initially constructed and subsequently optimized dynamically during training.
