@@ -13,19 +13,34 @@
   note = "Last accessed: 2025-07-10"
 }
 
-@misc{krothapalli_adaptive_2020,
-	title = {Adaptive {Label} {Smoothing}},
-	url = {http://arxiv.org/abs/2009.06432},
-	doi = {10.48550/arXiv.2009.06432},
-	abstract = {This paper concerns the use of objectness measures to improve the calibration performance of Convolutional Neural Networks (CNNs). CNNs have proven to be very good classifiers and generally localize objects well; however, the loss functions typically used to train classification CNNs do not penalize inability to localize an object, nor do they take into account an object's relative size in the given image. During training on ImageNet-1K almost all approaches use random crops on the images and this transformation sometimes provides the CNN with background only samples. This causes the classifiers to depend on context. Context dependence is harmful for safety-critical applications. We present a novel approach to classification that combines the ideas of objectness and label smoothing during training. Unlike previous methods, we compute a smoothing factor that is {\textbackslash}emph\{adaptive\} based on relative object size within an image. This causes our approach to produce confidences that are grounded in the size of the object being classified instead of relying on context to make the correct predictions. We present extensive results using ImageNet to demonstrate that CNNs trained using adaptive label smoothing are much less likely to be overconfident in their predictions. We show qualitative results using class activation maps and quantitative results using classification and transfer learning tasks. Our approach is able to produce an order of magnitude reduction in confidence when predicting on context only images when compared to baselines. Using transfer learning, we gain 2.1mAP on MS COCO compared to the hard label approach.},
-	urldate = {2025-07-04},
-	publisher = {arXiv},
-	author = {Krothapalli, Ujwal and Abbott, A. Lynn},
-	month = dec,
-	year = {2020},
-	note = {arXiv:2009.06432 [cs]},
-	keywords = {Computer Science - Artificial Intelligence, Computer Science - Computer Vision and Pattern Recognition},
+@techreport{begic,
+  author    = {Jasmin Begic and Christoph Kuehleitner and Philipp Moser},
+  title     = {Neural Networks with Continuously Adjusting Target Values},
+  institution = {University of Salzburg, Department of Artificial Intelligence and Human Interfaces},
+  year      = {2023},
+  month     = jul,
 }
+
+@techreport{almasov,
+  author      = {Deni Almasov-Misaev and Rupert Haderer and Elnes Kovacevic},
+  title       = {An Analysis of Sigma Adaptation of Target Values in ANN Training},
+  institution = {University of Salzburg, Department of Artificial Intelligence and Human Interfaces},
+  year        = {2024},
+  month       = sep,
+  note        = {Project report supervised by Helmut Mayer},
+}
+
+
+
+@article{krothapalli_adaptive_2020,
+  title     = {Adaptive Label Smoothing},
+  author    = {Krothapalli, Ujwal and Abbott, A. Lynn},
+  journal   = {arXiv preprint arXiv:2009.06432},
+  year      = {2020},
+  url       = {https://arxiv.org/abs/2009.06432},
+  doi       = {10.48550/arXiv.2009.06432}
+}
+
 
 @article{dos_santos_rethinking_2024,
 	title = {Rethinking {Regularization} with {Random} {Label} {Smoothing}},

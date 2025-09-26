@@ -97,7 +97,7 @@ These target values are dynamically optimized during the training process, which
 
 This approach requires a new rule for determining the predicted class: rather than choosing the neuron with the highest value, we select the neuron whose output value is closest to its corresponding target value and therefore has the lowest error; a method we will refer to as "minimum distance classification".
 
-The goal of our project is to increase training efficiency while maintaining acceptable classification accuracy. To evaluate the performance of our approach, we will test it on the MNIST dataset and compare it with the one-hot encoding method.}
+To evaluate the performance of our approach, we will employ the MNIST dataset and compare with the one-hot encoding method.}
 
 \vspace{4em}
 
@@ -110,11 +110,9 @@ One-hot encoding enforces a "winner-takes-all" (WTA) dynamic, where only the neu
 
 In this project, we propose a more flexible approach for target value assignment in classification networks. Instead of defining fixed values of 0 and 1, we generate target vectors composed of custom class and non-class values. Here, class values refer to the target values assigned to the positions which would ordinarily be filled with 1 in a one-hot vector, while the non-class values fill all other positions. These alternative targets are not chosen arbitrarily, but rather inferred from the model's own inherent output tendencies during training. By adapting target values dynamically in response to the network's evolving behavior, we aim to guide learning in a way that is more aligned with the model's natural predictions. \\
 
-This change also calls for a rethinking of how predictions are interpreted. Instead of relying on the activation of the highest neuron to determine the predicted class as in WTA, we introduce a "nearest target classification" approach. We select the class whose output vector value is closest to the corresponding target vector, thereby minimizing the error. This nearest target classification strategy reflects the idea that a well-trained model should not necessarily produce a maximal value in any particular output neuron, but rather accurately match the overall desired response. \\
+This change calls for a rethinking of how predictions are interpreted. Rather than treating each neuron as directly representing a class, we consider the entire output vector and assign the prediction to the class whose target vector lies closest under a chosen distance metric. Our goal is to design an algorithm that leverages this strategy of dynamic target values and to evaluate its performance relative to existing approaches. 
 
-Our hypothesis is that this method improves the training efficiency, while maintaining the classification accuracy. We empirically evaluate this method using the MNIST dataset, comparing its performance against the traditional one-hot encoding approach. \\
-
-\section{Classification with Artificial Neural Networks}
+\section{Classification with Artificial Neural Networks}\label{sec:class}
 ANNs are computational models inspired by the functioning and structure of the human brain, designed to simulate the way biological neurons process information. These networks serve as a powerful tool in complex pattern recognition and play a fundamental role in solving machine learning problems.  In this section, we provide an overview of Artificial Neural Networks exploring their basic architecture and functionality, while also giving insight on their application in classification tasks.
 
 \subsection{Structure of Artificial Neural Networks}
@@ -202,12 +200,11 @@ To achieve the correct class assignment, the network tries to find a hyperplane,
 However, when the data is not linearly separable, meaning a single straight line cannot separate the classes, the network uses multiple layers to create more complex non-linear decision boundaries. These non-linear boundaries are formed by stacking hidden layers and applying non-linear activation functions. Each layer learns progressively higher-level features of the data, allowing the network to model more complex patterns and therefore make more accurate decisions in classification tasks.
 
 \section{Methodology}
-In this section, we describe our approach to implementing dynamic target value optimization for neural network classification. First, we break down the concrete architecture of the target vectors used for training and classification. We then discuss how the class and non-class values that make up these target vectors are initially constructed and subsequently optimized dynamically during training.
+In this section, we describe our approach to implementing dynamic target value optimization for neural network classification. First, we break down the concrete architecture of the target vectors used for training and classification. Then we describe two algorithms which will be used to generate and dynamically adjust these target vectors.
 
-\subsection{Target Value Architecture}
+\subsection{Target Value Architecture}\label{sec:targets}
 
-To establish our methodology clearly, we first review the traditional one-hot encoding approach before defining our alternative target value structure.
-
+To establish our methodology clearly, it is important to note that in this work, a \textit{class} is represented not by a single neuron but by a full target vector that encodes the network's idealized response to inputs from that class. This contrasts with the traditional view, where each class is tied to a unique output neuron. With this in mind, we first review the standard one-hot encoding approach before introducing our alternative target value structure.
 
 In standard classification with $C$ classes, the target vector $\mathbf{t}^{(i)}$ for a sample belonging to class $i$ is defined as:
 
@@ -217,160 +214,66 @@ For example, with 3 classes, the target vectors are:
 $$\mathbf{t}^{(1)} = \begin{bmatrix} 1 \\ 0 \\ 0 \end{bmatrix}, \quad 
 \mathbf{t}^{(2)} = \begin{bmatrix} 0 \\ 1 \\ 0 \end{bmatrix}, \quad 
 \mathbf{t}^{(3)} = \begin{bmatrix} 0 \\ 0 \\ 1 \end{bmatrix}$$
+As discussed in Section~\ref{sec:class}, these vectors represent the desired outputs of the network for each class. For instance, when the input belongs to class 1, the first output neuron should produce 1 while the others should produce 0. The more the actual output deviates from this target, the higher the loss will be, and the more the network will need to adjust.\\ 
 
+As such, the target vectors specify what the output neurons should produce, and comparing these targets to the network's actual outputs yields the loss.  The method by which we construct these target vectors is, however,  not set in stone, it is a design choice. The real question is whether a particular method proves effective for learning.
 
-Our approach replaces the fixed values 0 and 1 with adaptive class and non-class values. For a classification problem with $C$ classes, we define:
+\subsection{Class and Non-Class Values}\label{sec:candnc}
+A simple approach to constructing these target vectors is the one-hot method discussed in the previous subsection. Here we aim to define a more abstract way of looking at this and other similar methods of target vector construction. 
 
-\begin{itemize}
-\item $c_i$: the class value for class i (replaces 1 in one-hot encoding)
-\item $\Bar{c}_i$: the non-class value for class i (replaces 0 in one-hot encoding)
-\end{itemize}
-
-The target vector $\mathbf{t}^{(i)}$ for class $i$ becomes:
-$$\mathbf{t}^{(i)} = [\Bar{c}_i, \Bar{c}_i, \ldots, \Bar{c}_i, \underbrace{c_i}_{i\text{-th position}}, \Bar{c}_i, \ldots, \Bar{c}_i]$$
-
-Using the same 3-class example:
-$$\mathbf{t}^{(1)} = \begin{bmatrix} c_1 \\ \Bar{c}_1 \\ \Bar{c}_1 \end{bmatrix}, \quad 
-\mathbf{t}^{(2)} = \begin{bmatrix} \Bar{c}_2 \\ c_2 \\ \Bar{c}_2 \end{bmatrix}, \quad 
-\mathbf{t}^{(3)} = \begin{bmatrix} \Bar{c}_3 \\ \Bar{c}_3 \\ c_3 \end{bmatrix}$$
-
-Importantly, in our implementation:
-\begin{itemize}
-\item Each class has its class and non-class values $c_i$ and $\Bar{c}_i$
-\item There is only one non-class value per class, meaning each position which would be filled with 0 in onehot encoding is filled with this same non-class value $\Bar{c}_i$ for that particular class's target $\mathbf{t}^{(i)}$
-
-\item All non-class values $\Bar{c}_i$ (and in special cases class values) are optimized dynamically during training
-\end{itemize}
-
-\subsection{Target Value Initialization and Optimization}
-Since a sample's classification depends on finding the nearest target vector to the network's output, we need target vectors that are reasonably well-separated from one another. Given our construction method, this separation can be achieved by ensuring that each class's class and non-class values are sufficiently spaced apart.
-
-Our approach accomplishes this through two stages: first, we select initial class and non-class values based on the network's natural output tendencies, and second, we dynamically increase the spacing between these values during training. This section describes both processes.
-
-\subsection{Initial Target Value Selection}
-The key challenge in selecting the initial class and non-class values is balancing two competing requirements: the values should reflect the model's innate output tendencies rather than being chosen arbitrarily, while also providing a distribution that enables sufficient separation, either initially or through the subsequent optimization process.
-
-We explored several strategies to achieve this balance:
+Let us first lay out two ways of thinking about how the one-hot method constructs its target vectors: 
 \begin{enumerate}
-    \item Uniform distribution of class and non-class values
-    \item Traditional soft targets (e.g.: $0.8$ and $0.2$)
-    \item Mean of untrained-network predictions
-    \item Remapping the untrained output means to use the full $(0,1)$ range
+\item \textbf{Class-focused view:} Each class is assigned a neuron and two values (for one-hot these are always 1 and 0). To construct the target vector for a sample, we identify its class and set the entry corresponding to that class's neuron to 1, while all other entries are set to 0.
+
+\item \textbf{Position-focused view:} Each class is still assigned a neuron and two values, but now we build the vector by inspecting each position in turn. For every entry we ask: does this position correspond to the neuron of the current class? If yes, assign it the first value of this class (here 1); if not, assign it the second value associated with \textit{the class of that neuron} (here 0).
+
 \end{enumerate}
 
-After experimenting with these approaches, we discovered that these largely lead to predictions which are no better than random guessing, with the notable exception of the second approach, which we will cover more in the results section. Through further discussion and experimentation, we settled on an altered version of the third approach, which we have decided to call "mean-nudge-initialization."
-This approach closely resembled the third approach, but substitutes it by slightly nudging the resulting class and non-class values to increase the initial separation. 
+These two ideas perform the same when applied to one-hot encoding since every class uses the same two values of 0 and 1, but they are not identical. Using distinct values for different classes would result in these two views producing differing target vectors for the same chosen values. Our method of choosing and dynamically updating target values is based entirely on the first (class-focused) view, we mention the second view here because it will play a role in Section~\ref{sec:disc}.\\
 
-\begin{algorithm}
-\caption{Adaptive Target Value Computation}
-\label{alg:adaptive_threshold}
-\begin{algorithmic}[1]
-\REQUIRE Network $\mathcal{N}$, test data $\mathcal{D}_{test}$, spacing function, nudge value $\epsilon$
-\ENSURE Adjusted non-class and class threshold values for each class
-
-\STATE \textbf{// Compute mean activations for each class}
-\FOR{each $(data, target)$ in $\mathcal{D}_{test}$}
-    \STATE $output \leftarrow \mathcal{N}(data)$
-    \STATE Group outputs by class: add to $outputs[target]$
-\ENDFOR
-
-\STATE Extract class and non-class activation values: $(nc\_vals, c\_vals) \leftarrow$ partition$(outputs)$
-
-\FOR{each class $c$}
-    \STATE $c\_means[c] \leftarrow$ mean$(c\_vals[c])$
-    \STATE $nc\_means[c] \leftarrow$ mean$(nc\_vals[c])$
-\ENDFOR
-
-\STATE \textbf{// Apply the spacing function to determine initial thresholds}
-\STATE $(non\_class\_values, class\_values) \leftarrow$ spacing$(c\_means, nc\_means)$
-
-\STATE \textbf{// Apply nudge adjustments for better separation}
-
-\FOR{each class $c$}
-    \IF{$non\_class\_values[c] > class\_values[c]$}
-        \STATE $non\_class\_values[c] \leftarrow non\_class\_values[c] + \epsilon$
-    \ELSE
-        \STATE $non\_class\_values[c] \leftarrow non\_class\_values[c] - \epsilon$
-    \ENDIF
-    
-    \STATE \textbf{// Enforce bounds [0,1] with compensatory adjustments}
-    \IF{$non\_class\_values[c] \leq 0$}
-        \STATE $non\_class\_values[c] \leftarrow 0$
-        \STATE $class\_values[c] \leftarrow \min(\epsilon, 1)$
-    \ELSIF{$non\_class\_values[c] \geq 1$}
-        \STATE $non\_class\_values[c] \leftarrow 1$
-        \STATE $class\_values[c] \leftarrow \max(1 - \epsilon, 0)$
-    \ENDIF
-\ENDFOR
-
-\RETURN $(non\_class\_values, class\_values)$
-\end{algorithmic}
-\end{algorithm}
-
-Algorithm~\ref{alg:adaptive_threshold} begins by running a full test epoch through the network and storing the activation outputs grouped by class. For each class $i$, the mean activation in that class's designated output neuron across all samples of the class $i$ becomes the class value $c_i$, while the non-class value $\Bar{c}_i$ is computed as the mean activation across all other output neurons for samples of that same class.
-
-This process typically results in densely packed threshold values that provide insufficient separation for effective classification. To address this, the method first applies the chosen spacing function (detailed in the next section) to establish initial thresholds, then further separates the class and non-class values by applying small nudge adjustments of magnitude $\epsilon$. The nudging direction depends on the relative positioning of the values: if non-class values exceed class values, we increase the non-class threshold; otherwise, we decrease it. Boundary enforcement ensures that all values remain within $(0,1)$ while maintaining meaningful separation.
-
-\subsection{Dynamic Target Optimization Algorithm}
-While the target values created by the algorithm \ref{alg:adaptive_threshold} are, according to our criteria, based on the innate tendencies of the models and are somewhat well separated, there are two issues with the targets generated by this approach.
+With this background, we can easily define our method for constructing target vectors. Before ever constructing a target vector, we go through the following steps:
 \begin{enumerate}
-    \item As the network learns, the target values will quickly lose any relation to the network's innate output tendencies.
-    \item The value's separation depends greatly on the chosen $\epsilon$. Small values of $\epsilon$ result in target values that rarely exceed a range of $(0, 0.3)$, likely because the underlying network outputs are compressed by the softmax function before averaging.
+    \item  Go through all classes and assign a unique output neuron to each one.
+    \item For each class, define the value that will occupy the position in the target vector corresponding to its assigned output neuron. We will refer to this value as the \textit{class value} of that class, denoted $c_{i}$ for class $i$. 
+    \item For each class, define the value that will occupy all other positions in the target vector, namely those that do not correspond to its assigned output neuron. We will refer to this value as the \textit{non-class value} of that class, denoted $\bar{c_{i}}$ for class $i$.
 \end{enumerate}
-To address these limitations, we continuously adapt these generated target values as training progresses, using a method we have come to call "sigma spacing". 
 
-Algorithm~\ref{alg:sigma_spacing} implements this approach by replacing the fixed nudge parameter $\epsilon$ with a dynamic separation criterion based on the standard deviation of current network outputs.
+When we now want to construct the target vector for a sample of a particular class, it is as simple as inserting that class's class value into the designated position of the vector (the one corresponding to the assigned neuron) and inserting the non-class value everywhere else. This results in the following target vector for any sample of class $i$:
+$$\mathbf{t}^{(i)} = [\bar{c_i}, \bar{c_i}, \ldots, \bar{c_i}, \underbrace{c_i}_{i\text{-th position}}, \bar{c_i}, \ldots, \bar{c_i}]$$
+The approach gives us two parameters for each class, which we can freely initialize and alter dynamically during training. In principle, one could assign a distinct non-class value to each of the
+$i-1$ remaining positions in the target vector. For simplicity, however, we use a single non-class value $\bar{c_i}$ per class and apply it uniformly to all non-designated positions.
 
-Rather than relying on static target values computed from the initial untrained network, sigma spacing recomputes separation requirements after each training epoch using $\sigma_{sum}$, the sum of standard deviations across current outputs. This is meant to ensure that target values remain relevant as the network's behavior evolves during training. Additionally, by scaling adjustments according to the actual variability in network outputs, the method automatically adapts to the compressed range typical of soft max-normalized activations.
+\subsection{Sigma Adaptation Algorithm}\label{sec:sigma}
+Now that we have established the class and non-class values, our next step is to find an algorithm that dynamically initializes and adjusts these values according to the network's output tendencies during training. We will then evaluate whether this approach improves the training process and how it compares to traditional methods. The core of this algorithm was first developed by Begic et al. and named the "Sigma Adaptation" algorithm \cite{begic}. In the following, we describe our interpretation of an extended version of this algorithm proposed by Almasov-Misaev et al. \cite{almasov}.
 
-\begin{algorithm}[H]
-\caption{Standard Deviation-Based Threshold Adjustment}
-\label{alg:sigma_spacing}
-\begin{algorithmic}[1]
-\REQUIRE Class values $class\_values$, non-class values $non\_class\_values$, scaling factor $\lambda$ (default = 1)
-\ENSURE Adjusted threshold values with minimum separation guarantee
+The algorithm consists of four components: \textit{pretraining},  \textit{profiling}, \textit{spacing}, and \textit{correction}. In the pretraining step, we calculate the initial class and non-class values. Profiling records statistics about the target values and network outputs during training. Spacing uses these statistics to adjust the class and non-class values. Finally, the correction step ensures that the adjusted values respect the necessary constraints. The following subsections describe each component in detail.
 
-\STATE \textbf{// Compute variability measure}
-\STATE $\sigma_{sum} \leftarrow$ sum of standard deviations across all current outputs
+\subsubsection{Pretraining}
+Before training begins, we assign each output neuron to a class as discussed in Section~\ref{sec:candnc}. To initialize the class and non-class values, we run a forward-only pass over the dataset without updating the weights and record the output activations for each sample. The class value $c_i$ is computed by averaging the activations of the assigned output neuron across all samples of class $i$. The non-class value $\bar{c}_i$ is obtained in the same way, but averaged across all non-assigned neurons. With these initial values determined for each class, training can begin. An addition to the algorithm as compared to the Almasov-Misaev et al. version is an optional nudge which can be applied to the non-class values $\bar{c_i}$, moving them away from their corresponding class values $c_i$. The amount by which the non-class value is moved can be freely chosen. We also ensure that it does not go out of bounds by applying the correction described in Section~\ref{sec:correct}.
 
-\FOR{each class $c$}
-    \STATE \textbf{// Check separation requirement}
-    \IF{$|class\_values[c] - non\_class\_values[c]| < \sigma_{sum}$}
-        \STATE \textbf{// Adjust non-class value based on relative positioning}
-        \IF{$non\_class\_values[c] \geq class\_values[c]$}
-            \STATE $non\_class\_values[c] \leftarrow non\_class\_values[c] + \lambda \sigma_{sum}$
-        \ELSE
-            \STATE $non\_class\_values[c] \leftarrow non\_class\_values[c] - \lambda \sigma_{sum}$
-        \ENDIF
-        
-        \STATE \textbf{// Handle boundary violations with compensation}
-        \IF{$non\_class\_values[c] > 1$}
-            \STATE $excess \leftarrow non\_class\_values[c] - 1$
-            \STATE $non\_class\_values[c] \leftarrow 1$
-            \STATE $class\_values[c] \leftarrow \max(0, class\_values[c] - excess)$
-        \ELSIF{$non\_class\_values[c] < 0$}
-            \STATE $deficit \leftarrow |non\_class\_values[c]|$
-            \STATE $non\_class\_values[c] \leftarrow 0$
-            \STATE $class\_values[c] \leftarrow \min(1, class\_values[c] + deficit)$
-        \ENDIF
-    \ENDIF
-    
-    \STATE \textbf{// Final bounds enforcement}
-    \STATE $class\_values[c] \leftarrow \text{clip}(class\_values[c], 0, 1)$
-    \STATE $non\_class\_values[c] \leftarrow \text{clip}(non\_class\_values[c], 0, 1)$
-\ENDFOR
+\subsubsection{Profiling}
+During every epoch in training, we collect several values for each class. Whenever a sample is forwarded through the network, we store the activation of the output neuron assigned to that class in a list of that class's "class value predictions." The activations of the other output neurons are stored in a list of this class's "non-class value predictions." At the end of the epoch, we calculate the standard deviation of all class value predictions ($\sigma_i$) and all non-class value predictions ($\bar{\sigma_i}$). We then take the sum of these two standard deviations, which leaves us with $\sigma^{sum}_i$ for each class $i$.
 
-\RETURN $(non\_class\_values, class\_values)$
-\end{algorithmic}
-\end{algorithm}
+\subsubsection{Spacing}\label{sec:spacing}
+The goal of spacing is to enforce a minimum separation between class and non-class values. To that end, we compute the distance between each class value $c_i$ and its corresponding non-class value $\bar{c}_i$ and ensure the distance between them is at least $\sigma^{\text{sum}}_i$. If the distance is smaller than this threshold, $\bar{c}_i$ is adjusted as follows:
 
-% Note: Maybe mention unidirectional and bidirectional sigma...
+\begin{itemize}
+    \item \textbf{Case 1:} If $\bar{c}_i > c_i$, then $\bar{c}_i$ is pushed upward by $\sigma^{\text{sum}}_i$.
+    \item \textbf{Case 2:} If $\bar{c}_i \leq c_i$, then $\bar{c}_i$ is pushed downward by $\sigma^{\text{sum}}_i$.
+\end{itemize}
+
+\subsubsection{Correction}\label{sec:correct}
+Depending on the activation function used, the range of values the output neurons can produce may be restricted. For example, a sigmoid activation function constrains outputs to the interval $[0,1]$. If during spacing the non-class value $\bar{c}_i$ is pushed outside this valid range, we clamp $\bar{c}_i$ to the nearest boundary $b \in \{0,1\}$ and set the class value to
+\[
+c_i = b \pm \sigma^{\text{sum}}_i,
+\]
+where the sign is chosen to ensure that $c_i$ remains within bounds and separated from $\bar{c}_i$ by at least $\sigma^{\text{sum}}_i$.
+
+\subsection{Base Algorithm}\label{sec:base}
+In addition to the Sigma Adaptation Algorithm described in Section~\ref{sec:sigma}, we introduce a stripped-down \textit{Base Algorithm} that omits the spacing step during training. We include this baseline because the spacing step lacks a theoretical justification, having been adopted from the prior group's algorithm largely on intuitive grounds. This makes it important to evaluate whether a similar algorithm without spacing performs better or worse.
 
 \section{Experimental Setup}
  Our experimental setup is designed to evaluate the performance of our dynamic target value optimization method against traditional one-hot encoding and soft-target baselines. All experiments are conducted on the MNIST dataset.
-
- \subsection{Dataset and Preprocessing}
- We used the standard MNIST dataset, which consists of 60,000 training images and 10,000 test images of handwritten digits (0-9). The images are normalized using a mean of 0.1307 and a standard deviation of 0.3081, which are the standard values for this dataset.
 
  \subsection{Network Architecture}\label{sec:net_arch}
 All experiments use convolutional neural  networks (CNNs) , implemented in PyTorch.
@@ -386,46 +289,32 @@ All experiments use convolutional neural  networks (CNNs) , implemented in PyTor
  \subsection{Training Parameters}
  The training process is configured with the following hyperparameters:
  \begin{itemize}
-     \item \textbf{Epochs:} The number of training epochs is configurable, but typically set to 4 for our experiments.
+     \item \textbf{Epochs:} The number of training epochs is configurable but typically set to 4 for our experiments.
      \item \textbf{Batch Size:} We use a batch size of 64 for training and 1000 for testing.
      \item \textbf{Optimizer:} Stochastic Gradient Descent (SGD) is used as the optimizer, with a learning rate of 0.01 and momentum of 0.5.
-     \item \textbf{Loss Function:} The loss is calculated using the negative Log-Likelihood loss (NLL) between the network's log softmax output and the target vectors.
+     \item \textbf{Loss Function:} The loss is calculated using the negative log likelihood loss (NLL) between the network's log softmax output and the target vectors.
  \end{itemize}
 
  \subsection{Target Value Strategies}
- We compare three different target value strategies:
+ We compare four different target value strategies:
  \begin{enumerate}
      \item \textbf{One-Hot Encoding:} The traditional approach, where the target vector for the correct class contains a 1 at the corresponding index and 0s elsewhere.
      \item \textbf{Soft Targets:} A variation where the target for the correct class is set to 0.8 and the targets for all other classes are set to 0.2.
-     \item \textbf{Dynamic Targets:} Our proposed method, where the class and non-class target values are initialized using mean-nudge initialization and then dynamically adjusted during training using the sigma spacing method. The initial values are determined by the mean activations of the untrained network on the test set, with a small "nudge" of 0.1 applied for initial separation.
+     \item \textbf{Sigma Adaptation:} The method of producing target vectors described in Section~\ref{sec:sigma} \cite{begic}.
+     \item \textbf{Base Algorithm:} Our stripped-down version of the Sigma Adaptation algorithm, described in Section~\ref{sec:base}.
  \end{enumerate}
 
  \subsection{Evaluation Metrics}
  The performance of each strategy is evaluated based on the following metrics, which are logged using Weights \& Biases:
  \begin{itemize}
-     \item \textbf{Hard Accuracy:} The percentage of correctly classified images. For the dynamic target method, classification is determined by the nearest target vector, not the maximum output value.
+     \item \textbf{Hard Accuracy:} Hard accuracy is defined as the percentage of correctly classified images. For standard one-hot targets, the predicted class is the output neuron with the highest activation. However, with Sigma Adaptation and the Base algorithm, this rule no longer applies. Instead, we treat the networks output as a vector and compute its Euclidean distance to each \textit{class's target vector} (see Section~\ref{sec:targets}.) The predicted class is taken to be the one whose target vector is closest to the output vector.
      \item \textbf{Test Loss:} The average NLL on the test set.
      \item \textbf{Confidence:} The average cosine similarity between the network's output and the target vector of the predicted class.
      \item \textbf{Target Value Separation:} For the dynamic target method, we track the absolute difference between the class and non-class target values for each class, as well as the average, minimum, and maximum separation across all classes.
  \end{itemize}
 
 \section{Results}
-In this section, we will examine how the proposed method performs in practice with and without sigma spacing, how it compares to traditional methods like one-hot encoding and soft targets.
-
-\subsection{Target Values Over Time}
-Before looking at the actual performance of our approach, we will look at an example of how the target values are initialized and how they develop over time.
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\linewidth]{graphs/sigma.png}
-    \caption{Class and non-class value development over 20 epochs}
-    \label{fig:class_dev}
-\end{figure}
-
-In Figure~\ref{fig:class_dev} see the class value (full) and non-class value (dotted) for class 0 in the MNIST dataset over the course of training the CNN. The blue area represents $\sigma_{sum}$, or rather, the area within a distance of $\sigma_{sum}$ from the class value. 
-
-The class and non-class values are likely initialized to around $0.1$ and $0$ respectively during pretraining. The nudge value $\epsilon = 0.1$ suggests that both were near $0$ when initially generated and then nudged apart to their positions at the beginning of the graph.
-
-We also observe that, as described in Algorithm~\ref{alg:sigma_spacing}, when the non-class value comes within a distance of $\sigma_{sum}$ to the class value, we attempt to move the non-class value down. Since the non-class value is already at the lower bound of $0$ here, the class value is moved up by  $\sigma_{sum}$ instead.
+In this section, we examine how the proposed methods perform in practice and how they compare to traditional methods like one-hot encoding and soft targets.
 
 \subsection{Performance Comparison}
 To compare the performance of these approaches, we examine accuracy over training time, focusing on both final performance and convergence speed.
@@ -436,22 +325,32 @@ To compare the performance of these approaches, we examine accuracy over trainin
     \label{fig:acc}
 \end{figure}
 
-As shown in Figure~\ref{fig:acc}, the one-hot and soft target approaches achieve over 90\% accuracy within the first 3 epochs. In contrast, the mean-nudge initialized model without spacing reaches just under 80\% accuracy after 20 epochs, while the variant using sigma spacing plateaus at approximately 40\% accuracy by epoch 10.
-\subsection{Accuracy and Target Value Separation}
-In Figure~\ref{fig:accvsep} we compare the development of accuracy with the average distance between class and non-class values in each approach.
+As shown in Figure~\ref{fig:acc}, the one-hot and soft target approaches achieve over 90\% accuracy within the first 3 epochs. In contrast, the model using the Base algorithm reaches just under 80\% accuracy after 20 epochs, while the variant using the Sigma Adaptation algorithm plateaus at approximately 40\% accuracy by epoch 10.
+
+\subsection{Accuracy and Confidence}
+In Table~\ref{tab:accuracy_confidence}, we compare the final accuracy and confidence of the four different approaches after training for 20 epochs.
+\begin{table}[h!]
+\centering
+\caption{Hard accuracy and confidence of different approaches.}
+\begin{tabular}{lcc}
+\hline
+\textbf{Approach} & \textbf{Hard Accuracy} & \textbf{Confidence} \\
+\hline
+One-Hot Encoding   & 1.00 & 0.99 \\
+Soft Targets       & 0.98 & 0.70 \\
+Nudge 0.1 Base     & 0.78 & 0.98 \\
+Nudge 0.1 Sigma    & 0.41 & 0.99 \\
+\hline
+\end{tabular}
+\label{tab:accuracy_confidence}
+\end{table}
+
+While accuracy varies dramatically across methods ($\sim$ 100\% for soft/one-hot targets, 78\% for Base algorithm, 41\% for Sigma Adaptation), confidence remains consistently high ($\sim$ 100\%) for all approaches except soft targets. This creates a stark mismatch between confidence and actual performance for the dynamic target value methods.
+
+\subsection{Loss Development During Training}
+Figure~\ref{fig:loss} shows the development of training loss over the 20 epochs for all four approaches, as well as a magnified view of just the Base and Sigma Adaptation approaches.
 
 \begin{figure}[H]
-    \centering
-    \includegraphics[width=0.6\linewidth]{graphs/accvsep.png}
-    \caption{Accuracy vs. Target Value Separation}
-    \label{fig:accvsep}
-\end{figure}
-
-While the sigma spacing approach gradually increases its average separation between epochs 5 and 10, the approach without sigma spacing maintains a constant separation between the class and non-class values throughout training. The sigma-spaced approach enhances its accuracy only during the initial two epochs and during the separation change, while the non-spaced approach experiences an overall increase in accuracy throughout the training process.
-\subsection{Loss Development During Training}
-Figure~\ref{fig:loss} shows the development of training loss over the 20 epochs for all four approaches, as well as a magnified view of just the base and sigma spacing approaches.
-
-\begin{figure}[htbp]
 \centering
 \subfigure[Loss development over training epochs\label{fig:all_loss}]{%
     \includegraphics[width=0.48\textwidth]{graphs/loss.png}
@@ -464,76 +363,75 @@ Figure~\ref{fig:loss} shows the development of training loss over the 20 epochs 
 \label{fig:loss}
 \end{figure}
 
-The test loss of the one-hot and soft target develop in line with their accuracy, showing a steep dropoff in the first few epochs, then slowly decreasing until the end of training. The loss in our proposed approaches decreases steadily throughout the entire training, without speeding up or slowing down significantly at any point.
+The test loss of the one-hot and soft target approaches develop in line with their accuracy, showing a steep drop-off in the first few epochs, then slowly decreasing until the end of training. The loss in the dynamic target approaches decreases steadily throughout the entire training, without speeding up or slowing down significantly at any point.
 
-\subsection{Accuracy and Confidence}
-In Figure~\ref{fig:accvconf}, we compare the final accuracy and confidence of the four different approaches after training for 20 epochs.
+\subsection{Accuracy and Target Value Separation}
+In Figure~\ref{fig:accvsep} we compare the development of accuracy with the average distance between class and non-class values in between both dynamic target value approaches.
+
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.5\linewidth]{graphs/accvconf.png}
-    \caption{Accuracy vs. confidence}
-    \label{fig:accvconf}
+    \includegraphics[width=0.6\linewidth]{graphs/accvsep.png}
+    \caption{Accuracy vs. Target Value Separation}
+    \label{fig:accvsep}
 \end{figure}
 
-While accuracy varies dramatically across methods (100\% for soft/one-hot targets, 80\% for mean-nudge without spacing, 40\% for sigma spacing), confidence remains consistently high ($\sim$ 100\%) for all approaches except soft targets. This creates a stark mismatch between confidence and actual performance for the mean-nudge methods.
+While the Sigma Adaptation approach gradually increases its average separation between epochs 5 and 10, the Base approach maintains a constant separation between the class and non-class values throughout training. The Sigma Adaptation approach enhances its accuracy only during the initial two epochs and during the separation change, while the non-spaced Base approach experiences an overall increase in accuracy throughout the training process.
 
-\section{Discussion and Potential Next Steps}
-The aim of this section is to analyze the results of our experiments and find potential explanations for the observed behavior, as well as to point out any meaningful correlations in our data.
+\subsection{Target Values Over Time}
+The following is an example of how the target values are initialized and how they develop over time.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{graphs/sigma.png}
+    \caption{Class and non-class value development over 20 epochs}
+    \label{fig:class_dev}
+\end{figure}
 
-\subsection{Performance Analysis: The Confidence-Accuracy Mismatch}
-The core insight which can be gained from these experiments is that these novel approaches are, in their current form, not very valuable and fail to fill a useful niche. The initial goal was to achieve better training speed or reduce overfitting while maintaining useful accuracy. However, our results demonstrate that the proposed dynamic target methods deliver neither benefit: they achieve significantly lower accuracy (40-80\%) compared to traditional methods ($> 90\%$), while paradoxically maintaining high confidence ($\sim 100\%$) that undermines any potential regularization benefits (Figure~\ref{fig:accvconf}).
-Where the one-hot approach delivers the best overall accuracy and training speed, the regular soft target approach exhibits similar accuracy with appropriately lower confidence, therefore acting against overfitting. Our dynamic approaches occupy the worst possible position in this trade-off space (poor accuracy combined with overconfident predictions) making them unsuitable for practical applications where either high performance or well-calibrated uncertainty is required.
+In Figure~\ref{fig:class_dev} see the class value (full) and non-class value (dotted) for class 0 in the MNIST dataset over the course of training the CNN. The blue area represents $\sigma^{sum}_0$, or rather, the area within a distance of $\sigma^{sum}_0$ from the class value. 
 
-\subsection{The Divergence Between Loss and Accuracy}
-Where Figure~\ref{fig:dyn_loss} clearly shows the loss of our approaches decrease steadily during the entire training process, the accuracy (as seen in Figure~\ref{fig:acc}), especially of the sigma spacing approach, does not mirror this trend as might be expected. While the decreasing loss does indicate that the network is learning, it appears that the sigma spacing inhibits the translation of this learning into improved classification accuracy. A potential explanation may be that, while the predictions do overall become more similar to the correct targets, the frequent movement of the class and non-class values prevents this increase in similarity from actually resulting in the closest target vector being the one from the correct class.
+The class and non-class values are likely initialized to around $0.1$ and $0$ respectively during pretraining. The nudge value $\epsilon = 0.1$ suggests that both were near $0$ when initially generated and then nudged apart to their positions at the beginning of the graph.\\
 
-While this "moving target" explanation could potentially contribute to the issue, the target values do eventually stabilize around epoch 10 (Figure~\ref{fig:accvsep}). This indicates that there exists some more profound issue with (this interpretation of) the sigma spacing approach, which drives class and non-class values into positions which are fundamentally unsuitable for effective classification.
+We also observe that, as described in Section~\ref{sec:sigma}, when the non-class value comes within a distance of $\sigma^{sum}_0$ to the class value, we attempt to move the non-class value down. Since the non-class value is already at the lower bound of $0$ here, the class value is moved up by $\sigma^{sum}_0$ instead.
 
-\subsection{Target Value Dynamics and Their Impact}
-While the sigma spacing approach's low accuracy and high confidence provide little hope for the methods' usefulness, the median-nudge initialization approach (without spacing) exhibits a more salvageable accuracy / confidence ratio.
+
+\section{Discussion and Potential Next Steps}\label{sec:disc}
+The aim of this section is to analyze the results of our experiments and find potential explanations for the observed behavior, as well as to point out any meaningful correlations in the data.
+
+\subsection{Interpreting the Results}
+In this section, we analyze the outcomes of our experiments, discuss their implications, and propose possible explanations for the observed behaviors.
+
+
+\subsubsection{Performance Analysis: The Confidence-Accuracy Mismatch}
+The core insight which can be gained from these experiments is that these novel approaches are, in their current form, not suitable for practical applications. The initial goal was to achieve better training speed or reduce overfitting while maintaining useful accuracy. However, our results demonstrate that the proposed dynamic target methods deliver neither benefit: they achieve significantly lower accuracy (40-80\%) compared to traditional methods ($> 90\%$), while paradoxically maintaining high confidence ($\sim 100\%$) that undermines any potential regularization benefits (Table~\ref{tab:accuracy_confidence}).
+Where the one-hot approach delivers the best overall accuracy and training speed, the regular soft target approach exhibits similar accuracy with appropriately lower confidence, therefore acting against overfitting. Our dynamic approaches occupy a poor position in this trade-off space (low accuracy combined with overconfident predictions) making them unsuitable for applications where either high performance or well-calibrated uncertainty is required.
+
+\subsubsection{The Divergence Between Loss and Accuracy}
+Where Figure~\ref{fig:dyn_loss} clearly shows the loss of the dynamic target approaches decrease steadily during the entire training process, the accuracy (as seen in Figure~\ref{fig:acc}), especially of the Sigma Adaptation approach, does not mirror this trend as might be expected. While the decreasing loss does indicate that the network is learning, it appears that the spacing process of the algorithm (see Section~\ref{sec:spacing}) inhibits the translation of this learning into improved classification accuracy. A potential explanation may be that, while the predictions do overall become more similar to the correct targets, the frequent movement of the class and non-class values prevents this increase in similarity from actually resulting in the closest target vector being the one from the correct class.
+
+While this "moving target" explanation could potentially contribute to the issue, the target values do eventually stabilize around epoch 10 (Figure~\ref{fig:accvsep}). This indicates that there exists some more profound issue with the Sigma Adaptation algorithm as described in Section~\ref{sec:sigma}, which drives class and non-class values into positions which are fundamentally unsuitable for effective classification.
+
+\subsubsection{Target Value Dynamics and Their Impact}
+As opposed to the Sigma Adaptation the Base approach (without spacing) exhibits a slightly better accuracy / confidence ratio.
 
 The concept of adapting the labels according to some external factor is not entirely novel, for example in adaptive label smoothing, where the smoothing factor is determined by a property of the input data \cite{krothapalli_adaptive_2020}. Despite this, assigning labels solely based on the untrained network's output is an unexplored field that could use more study. 
 
-\subsection{Implications for Future Work}
-There are a number of possible next steps that could be helpful in enhancing the efficacy of these methods. We will briefly outline possible areas of interest for further research in this area.
+\subsubsection{Experiment Complexity}
+A key issue with our experiments is the use of a CNN. While CNNs are the industry standard for image classification tasks, testing of a novel concept such as this would be far better served by a simpler architecture that yields more explainable results. As it stands, the reasons for most of our results remain guesswork; this could have been avoided to some extent by using a simpler architecture.
 
-\subsection{Mean-Nudge Initialization}
-The mean-nudge initialization pretraining approach, while being the most usable option out of our tested approaches, is still underperforming when compared to established techniques like one-hot encoded targets. We will suggest two potential improvements.
-\begin{itemize}
-    \item Remapped-mean-nudge initialization: Since our current approach initializes the class and non-class values based on their observed means over the outputs for all samples of that particular class, our initial values fall only within a range that is typical of the softmax function applied to our model's output. As such, initial values have essentially no chance of exceeding $\sim 0.3$, despite the available range of values spanning the entirety of (0,1). It may be worth attempting to scale the initial class and non-class values to make more adequate use of the available range. While this could lead to better separated targets, it may also weaken the relation between the class and non-class values and the actual preferences of the network.
-    \item Late initialization: While our proposed initialization method is applied entirely before the network is trained, it may be useful to generate these targets using a lightly trained network to extract more meaningful output preferences. The motivation is that even one or two epochs of training with traditional one-hot targets may encourage the network to form preferences more closely aligned with the classification task, though this may also introduce or reinforce unwanted biases.
-\end{itemize}
+\subsection{Future Work}
+There are a number of possible next steps that could be helpful in further exploring the potential of approaches akin to the ones described here. We believe the main issue with our approach lies not in the concept itself but in a design decision made early in our process. In Section~\ref{sec:candnc} we describe two high-level approaches for constructing target vectors: the class-focused view and the position-focused view. While we settled on the class-focused view due to its perceived simplicity, we did not consider the effect this would have on the generated target vectors, and indeed on the network itself, in enough depth.\\
 
-\subsection{Sigma Spacing}
-Since our implementation of sigma spacing had no positive impact on training, it may be useful to reevaluate some basic assumptions underlying our implementation. The way we have defined class and non-class values, while intuitive, may not be too abstract to accurately encode the network's actual preferences. Shifting from a one class value and one non-class value per class approach, to a one class and non-class value per neuron approach may or may not improve the effectiveness of the sigma spacing approach. Although this direction is speculative and lacks strong theoretical grounding at this stage, exploring such a reframing may still yield useful insights or unexpected improvements.
+Under the class-focused view, each class's target vector seems simple, it consists only of the class value and the associated non-class values. However, this design means that each output neuron (corresponding to a position in the target vector) is trained not toward just two values, but toward $i$ values, where $i$ is the number of classes. Each neuron must therefore take on its assigned class's value as well as $i-1$ different non-class values, one for each other class. This may introduce instability during training and confuse the network. For this reason, it would be valuable for future work to examine how the Sigma Adaptation algorithm performs when applied under the position-focused view of target vector construction.
+
 
 \section{Summary and Conclusion}
-In this project, we explored an alternative method to one-hot encoding for initializing target values in neural network classification tasks, by assigning custom target values which depend on the models' untrained outputs and dynamically evolving them throughout training. This involved two main innovations:
-\begin{itemize}
-    \item Mean-nudge initialization: inferring initial target values from the network's own output before training.
-    \item Sigma spacing: adjusting these values during training based on the network's output variance. 
-\end{itemize}
+In this project, we explored an alternative method to one-hot encoding for initializing target values in neural network classification tasks by assigning custom target values that depend on the models' untrained outputs and dynamically evolving them throughout training.
 
-\subsection{Findings}
-Our main findings included an overall lack of viable performance across both our approaches when compared to traditional methods. Here the mean-nudge initialization method shows some promise if developed further, while the sigma spacing approach seems to suffer from several foundational issues which may require a rethinking of the underlying approach to be addressed adequately.
+Our main findings included an overall lack of viable performance across both our approaches when compared to traditional methods. Here the main challenges were fundamental design decisions and an overly complex experiment setup.\\
 
-\subsection{Conclusion}
-The idea of capturing the network's preferences remains interesting, but our methods may oversimplify the dynamics of the problem. While some parts of our approach seem to fall just short of being useful, other parts require more careful reconsideration.
-
-Future works could focus on applying our existing sigma spacing approach to values generated using different assumptions about how to extract the "preferences" of the neural network, or attempt to improve the initialization method itself by making better use of the available value interval (0,1).
-
-% links go here, NOT in references
-\section{Links}
-
-\begin{itemize}
-\item Project Page: \url{http://student.cosy.sbg.ac.at/???}
-\item PS Page:
-\url{http://www.cosy.sbg.ac.at/~helmut/Teaching/PSRobotik/}
-
-\end{itemize}
+The idea of capturing the network's preferences remains interesting. While some parts of our approach seem to fall just short of being useful, other parts require more careful reconsideration. Future works could focus on applying the described Sigma Adaptation algorithm under different assumptions about target vector construction or about how to extract the "preferences" of the neural network in the first place.
 
 % real scientific references
-\bibliographystyle{plain}
+\bibliographystyle{ieeetr}
 \bibliography{references}		% .bib files here
 
 \end{document}
