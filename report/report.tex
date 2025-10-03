@@ -91,24 +91,18 @@ Correspondence to: \\
 \pagenumbering{arabic}  %Better if TOC is variable (more than one page)
 \setcounter{page}{1}
 
-\abstract{The aim of our project is to implement an alternative method of choosing target values for classification with neural networks.  Instead of using traditional one-hot encoding, which uses fixed values of 0 and 1, this method involves assigning custom target values to each class. 
-
-These target values are dynamically optimized during the training process, which distinguishes our approach from conventional fixed-target training. Our idea is to capture the model's natural predictions and use these to refine the target values.
-
-This approach requires a new rule for determining the predicted class: rather than choosing the neuron with the highest value, we select the neuron whose output value is closest to its corresponding target value and therefore has the lowest error; a method we will refer to as "minimum distance classification".
-
-To evaluate the performance of our approach, we will employ the MNIST dataset and compare with the one-hot encoding method.}
+\abstract{The aim of our project is to implement an alternative method of choosing target values for output neurons in classifying neural networks.  Instead of using traditional one-hot encoding, which uses fixed values of 0 and 1, this method involves assigning custom target values to each class. These target values are dynamically optimized during the training process, which distinguishes our approach from conventional fixed-target training. Our idea is to capture the model's predicted values and use these to adapt the target values. This approach requires a new rule for determining the predicted class: rather than choosing the neuron with the highest value, we select the neuron whose output value is closest to its corresponding target value and therefore has the lowest error, a method we will refer to as "minimum distance classification". To evaluate the performance of our approach, we will employ the MNIST dataset and compare with the one-hot encoding method.}
 
 \vspace{4em}
 
 \section{Introduction}
-Artificial neural networks (ANNs) have become essential tools in modern classification tasks, mapping complex input data to discrete predefined output categories. During training, the error is calculated as the difference between the desired output and the actual output produced by the network. The objective of the training process is to minimize this error through iterative adjustments of the network's weights and biases. Following the training phase, performance is evaluated using a test set that contains previously unseen data, providing a neutral measure of its generalizability and classification accuracy. \\
+Artificial neural networks (ANNs) have become essential tools in modern classification tasks, mapping complex input data to discrete predefined output categories. During training, the error is calculated as the difference between the desired output and the actual output produced by the network. The objective of the training process is to minimize this error through iterative adjustments of the network's weights and biases. Following the training phase, performance is evaluated using a test set that contains previously unseen data, providing a measure of its generalizability and classification accuracy. \\
 
-Traditionally, the learning process of such networks is based on one-hot encoded target values, where the correct class is represented by the value 1, and all others are assigned a 0. This binary approach became standard due to its simplicity and compatibility with widely used loss functions. However, enforcing these extreme target values could potentially lead to challenges depending on the system's underlying activation function. It may negatively affect gradient flow, reduce training efficiency, and encourage overconfident predictions. \\
+Traditionally, the learning process of such networks is based on one-hot encoded output target values, where the correct class is represented by the value 1, and all others are assigned a 0. This binary approach became standard due to its simplicity and compatibility with widely used loss functions. However, enforcing these extreme target values could potentially lead to challenges depending on the neurons' activation function. It may negatively affect gradient flow, reduce training efficiency, and encourage overconfident predictions. \\
 
-One-hot encoding enforces a "winner-takes-all" (WTA) dynamic, where only the neuron with the highest output is considered correct. Since the target vector consists of a 1 for the correct class and a 0 everywhere else, this is effectively equivalent to selecting the output that is closest to its respective target value. Thus, WTA can be considered a special case of a more general strategy, which is known as nearest target or minimum distance classification. Here, we make a general comparison between the entire output distribution given by the network and the available target vectors for each class. Whichever class's target the output is closest to (using a distance metric such as Euclidean distance) will be chosen as the correct class. \\
+One-hot encoding enforces a "winner-takes-all" (WTA) dynamic, where only the neuron with the highest output is deemed correct. Since the target vector consists of a 1 for the correct class and a 0 everywhere else, this is effectively equivalent to selecting the output that is closest to its respective target value. Thus, WTA can be considered to be a special case of a more general strategy, which is referred to as nearest target or minimum distance classification. Here, we make a general comparison between the entire output given by the network and the available target for each class. Whichever class' target the output is closest to, will be chosen as the correct class. \\
 
-In this project, we propose a more flexible approach for target value assignment in classification networks. Instead of defining fixed values of 0 and 1, we generate target vectors composed of custom class and non-class values. Here, class values refer to the target values assigned to the positions which would ordinarily be filled with 1 in a one-hot vector, while the non-class values fill all other positions. These alternative targets are not chosen arbitrarily, but rather inferred from the model's own inherent output tendencies during training. By adapting target values dynamically in response to the network's evolving behavior, we aim to guide learning in a way that is more aligned with the model's natural predictions. \\
+In this project, we propose a more flexible approach for target value assignment in classification networks. Instead of defining fixed values of 0 and 1, we generate target vectors composed of custom class and non-class values. Here, class values refer to the target values assigned to the positions which would ordinarily be filled with 1 in a one-hot vector, while the non-class values fill all other positions. These alternative targets are not chosen arbitrarily, but rather inferred from the model's own inherent output tendencies during training. Notably, this process is bidirectional. While the network's behavior influences the assignment of target values, these targets in turn influence the subsequent learning dynamics. By adapting target values dynamically in response to the network's evolving behavior, we thus establish a feedback loop that aligns the learning process more closely with the model's intrinsic predictions.\\
 
 This change calls for a rethinking of how predictions are interpreted. Rather than treating each neuron as directly representing a class, we consider the entire output vector and assign the prediction to the class whose target vector lies closest under a chosen distance metric. Our goal is to design an algorithm that leverages this strategy of dynamic target values and to evaluate its performance relative to existing approaches. 
 
@@ -120,11 +114,11 @@ ANNs are computational models inspired by the functioning and structure of the h
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.56\linewidth]{graphs/annStructure.jpg}
-    \caption{Network structure for training ANN models  \cite{FHWA}}
+    \caption{Network structure for training ANN models taken from \cite{FHWA}.}
     \label{fig:annStruct}
 \end{figure}
 
-An Artificial Neural Network consists of a multitude of interconnected nodes, or neurons, organized into layers. Each layer is designed to process input data and pass the resulting output signals to the following. To achieve this, each neuron receives one or more inputs, applies respective weights and a bias, and then forwards the result through an activation function. Typically, a Neural Network is composed of three types of layers, as also visualized in Figure \ref{fig:annStruct}:
+An Artificial Neural Network consists of a multitude of interconnected nodes, or neurons, organized into layers. Each layer is designed to process input data and pass the resulting output signals to the following. To achieve this, each neuron receives one or more input values through connections to previous neurons, where each connection has an associated weight. The neuron then sums these weighted inputs together with a bias, and forwards the result through an activation function. Typically, a Neural Network is composed of three types of layers, as also visualized in Figure \ref{fig:annStruct}:
 
 \begin{itemize}
      \item \textbf{Input Layer:} The input layer is the first layer of the network and is responsible for receiving the raw input data. Each neuron in this layer represents a specific feature of the input. For example, in an image classification task, each input neuron may correspond to a single pixel of the given image.
@@ -132,77 +126,80 @@ An Artificial Neural Network consists of a multitude of interconnected nodes, or
      \item \textbf{Output Layer:} This concluding layer produces the network's final output. In a classification task, the output layer usually consists of one neuron per possible class, with each neuron's output representing the network's prediction for the corresponding class.
 \end{itemize}
 
-Each neuron in a layer is connected to every neuron in the previous and the following layer, creating a fully connected, dense network. These connections are defined by the weights, which are adjusted during the training process.
+Neural network architectures can vary significantly, however, a common example is the Multi-Layer-Perceptron (MLP). Here, each neuron in a layer is connected to every neuron in the previous and the following layer, creating a fully connected, dense network. These connections are associated with weights that define both which neurons are linked and the strength of each connection and are adjusted during the training process.
 
 
-\subsection{Inner Workings of a Neuron}
+\subsection{Mechanism of a Neuron}
 The process by which a neuron works can be described by the following two steps:
  \begin{enumerate}
- \item \textbf{Aggregation Function:} Each neuron receives one or more input signals. Within input layers these signals correspond to raw data, whereas in the case of hidden layers they originate from the outputs of the previous layer. Among other things, the obtained data contains information on the corresponding weights and biases. The weights determine the strength of the connection between two neurons. During training the weights are adjusted accordingly, further explained in Section~\ref{sec:training_proc}. The bias is used to shift the activation function to improve the learning process. 
-Now the aggregation function, which is used to calculate the weighted sum of the given inputs by multiplying each input value by its corresponding weight, adding the bias, and summing up the products, is applied. The weighted sum $z$ of a neuron can be computed as follows, where $x_i$ denotes the inputs, $w_i$ the weights, and $b$ the bias: \\
-$$z_i = \sum_{i=1}^n x_i* w_i +b$$
+ \item \textbf{Aggregation Function:} Each neuron receives one or more input signals. Within input layers these signals correspond to raw data, whereas in the case of hidden layers they originate from the outputs of the previous layer. The corresponding weights and biases of the network's links determine how the signals are processed before serving as input to the neuron. The weights define the strength of the connection between two neurons and are modified accordingly during training (Section~\ref{sec:training_proc}). The bias is used to adjust the activation function to improve the learning process. 
+After recieving the input data, the aggregation function, which is used to calculate the weighted sum of the given inputs, is applied. The weighted sum, the input, $z$ of a neuron $i$ can be computed as follows, where $x_{i,j}$ denotes the input signals where $j$ indexes the neurons from the previous layer, $w$ the weights, and $b$ the bias: 
+\begin{equation}
+$$z_i = \sum_{j=1}^n x_{i,j}* w_i +b_i$$
+\label{eq:weighted_sum}
+\end{equation}
 
- \item \textbf{Activation Function:} In the next step, the weighted sum $z_i$ is passed through the activation function. This function introduces non-linearity into the network, which enables the system to recognize, learn, and model complex non-linear patterns. The final output of the neuron in the layer is the result of the activation function applied to the weighted sum of its inputs. Two commonly used activation functions, which were also applied in this project (see Section~\ref{sec:net_arch}), are the sigmoid and the Softmax activation functions. They are defined as follows:
+ \item \textbf{Activation Function:} In the next step, the aggregated input $z_i$ is passed through the activation function. This function introduces non-linearity in the network, which enables the system to recognize, learn, and model complex non-linear structures. The final output of a neuron is the result of the activation function applied to the input. Two commonly used activation functions, which were also applied in this project (Section~\ref{sec:net_arch}), are the sigmoid and the softmax activation functions. They are defined as follows:
 \begin{itemize}
-\item \textbf{Sigmoid-activation function:} The sigmoid function maps any input to a value between 0 and 1, making it ideal for binary classification problems. 
-\item[]\hspace{1.25cm}$\Rightarrow \sigma(z_i)=\frac{1}{1+e^{-z}}$
+\item \textbf{Sigmoid activation function:} The sigmoid function maps any input to a value between 0 and 1, making it ideal for binary classification problems. 
+\begin{equation}
+$$\sigma(z_i)=\frac{1}{1+e^{-z}}$$
+\label{eq:sigmoid_act}
+\end{equation}
 
-\item \textbf{Softmax-activation function:} The Softmax function converts the raw output into a probability distribution across all k classes and is therefore often used in the output layer of classification networks.
-\item[]\hspace{1.25cm}$\Rightarrow Softmax(z_i)=\frac{e^{z_i}}{\sum_{j=1}^{k} e^{z_j}}$
+\item \textbf{Softmax activation function:} The softmax function converts the raw output into a probability distribution across all k classes and is, therefore, often used in the output layer of classification networks.
+\begin{equation}
+$$Softmax(z_i)=\frac{e^{z_i}}{\sum_{j=1}^{k} e^{z_j}}$$
+\label{eq:softmax_act}
+\end{equation}
 \end{itemize}
 \end{enumerate}
 
 \subsection{Training Process}\label{sec:training_proc}
-The objective of the training process in an ANN is to adjust the network's weights and biases to minimize the error between the actual output and the target values. This is achieved through a method called backpropagation. In this process the network iteratively updates its parameters using the gradients of the loss function with respect to each weight and bias in the direction that reduces the error. The loss function guides the optimization process by quantifying the difference between the expected and the generated outputs. One commonly used loss function in classification tasks is the negative Log-Likelihood loss (NLL). This function measures the difference between the network's predicted probability distribution given by the log softmax function and the target vectors. The Negative Log-Likelihood (NLL) loss is defined as:
+The objective of the training process in an ANN is to adjust the network's weights and biases to minimize the error between the actual output and the target values. This is achieved through a method called back propagation. In this process the network iteratively updates its parameters using the gradients of the loss function with respect to each weight and bias in the direction that reduces the error. The loss function guides the optimization process by quantifying the difference between the expected and the generated outputs. A commonly used loss function in classification tasks is the cross entropy, also known as negative Log-Likelihood loss (NLL). This function measures the difference between the network's predicted probability distribution given by the log softmax function and the true distribution. The cross entropy is defined as:
 
-\[
-\text{NLL}(z_i) = -\sum_{j=1}^{M} y_{ij} \log \hat{y}_{ij}
-\]
+\begin{equation}
+$\[
+\text{NLL}(z) = -\sum_{j=1}^{M} y_{j} \log \hat{y}_{j}
+\]$
+\label{eq:cross_ent}
+\end{equation}
 
 where:
 \begin{itemize}
-  \item \( y_{ij} \) is the target label for class \( j \) in one-hot encoding (1 for the correct class, 0 otherwise),
-  \item \( \hat{y}_{ij} \) is the predicted probability for class \( j \),
+  \item \( y_{j} \) is the target label for class \( j \) in one-hot encoding (1 for the correct class, 0 otherwise),
+  \item \( \hat{y}_{j} \) is the predicted probability for class \( j \),
   \item \( M \) is the total number of classes.
 \end{itemize}
 
-Since only one \( y_{ij} \) is 1 (the correct class), this simplifies to:
+Since only one \( y_{j} \) is 1 (the correct class), this simplifies to:
 
 \[
-\text{NLL}(z_i) = -\log \hat{y}_{i,c}
+\text{NLL}(z) = -\log \hat{y}_{c}
 \]
 
-where \( c \) is the index of the correct class for sample \( i \).
+where \( c \) is the index of the correct class.
 
 \subsection{Convolutional Neural Networks}
-A Convolutional Neural Network (CNN) is a specialized type of artificial neural network designed for systems needing object detection, segmentation, and recognition, such as image classification networks. The key difference between CNNs and traditional ANNs lies in their architecture. CNNs use convolutional layers to automatically detect significant patterns at different levels of abstraction, like edges, textures, or shapes, directly from the raw input data, eliminating the need for manual feature extraction.
+A Convolutional Neural Network (CNN) is a type of artificial neural network primarly designed for image classification networks. The key difference between CNNs and traditional ANNs lies in their architecture. CNNs use convolutional layers to perform learned feature extraction, automatically identifying significant patterns, like edges, textures, or shapes, directly from the raw input data, eliminating the need for manual feature extraction.
 The architecture of a CNN typically consists of these three layer types:
 \begin{itemize}
-\item\textbf{Convolutional Layers:} These layers are the core components of CNNs. A convolutional layer applies filters, also known as kernels, to the input data, performing a convolution operation that extracts specific (learned) attributes. Each filter detects a different feature, like an edge or texture, in a small region of the input and generates a feature map that indicates the presence and strength of the corresponding feature within the input image. After convolution, the output is passed through an activation function, analogous to the ANN structure.
+\item\textbf{Convolutional Layers:} These layers are the core components of CNNs. A convolutional layer applies filters, also known as kernels, to the input data, performing a convolution operation that extracts specific (learned) attributes. 
 
-\item\textbf{Pooling Layers:} Pooling layers are typically placed after convolutional layers. They reduce the spatial dimensions of the feature maps by extracting the most important information, which also helps reduce the computational load. Common pooling methods include max pooling and average pooling.
-
-\item\textbf{Fully Connected Layers:} After several convolutional and pooling layers, the network typically includes one or more fully connected layers. In these layers each neuron is connected to every neuron in the previous layer. They are typically used to hierarchically combine the extracted features and make the final prediction or classification.
+Each filter detects a different feature representation in a small region of the input and generates a feature map that indicates the presence and strength of the corresponding feature within the input image. While some filters may correspond to recognizable patterns such as edges or textures, many features are abstract and may not be easily interpretable for humans. After convolution, the output is passed through an activation function, analogous to the ANN structure.
+\item\textbf{Pooling Layers:} Pooling layers are typically placed after convolutional layers. They reduce the spatial dimensions of the feature maps by extracting the most important information, which also helps reduce the computational load. 
+\item\textbf{Fully Connected Layers:} After several convolutional and pooling layers, the network typically includes one or more fully connected layers. In these layers each neuron is connected to every neuron in the previous layer. They are typically used to combine the extracted features and make the final prediction or classification.
 \end{itemize}
 
 \subsection{Classification Mechanisms}
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.7\linewidth]{graphs/hyperplane.png}
-    \caption{Illustration of hyperplanes in different dimensions \cite{Hyperplane}}
-    \label{fig:hyperplane}
-\end{figure}
 
-In artificial neural networks, classification refers to the process of assigning given input values to one of several predefined classes based on specific patterns within the data. A key goal of a classification network is to find a decision boundary that can separate discrete regions corresponding to each class. ANNs find decision boundaries through an iterative process of training and adjusting the weights and biases accordingly to minimize classification error by using backpropagation. After the training phase, the network uses the learned decision boundary to classify unseen data points. The classification process can be broken down into three main steps: first, the input data is passed through the input layer, where each neuron represents a feature of the data. Next, the network processes the data through the hidden layers, where relevant features are extracted using weighted sums, biases, and activation functions. Finally, the processed data reaches the output layer, where the network assigns a class based on the neuron with the highest output value, providing the network's ultimate prediction.
+In artificial neural networks, classification refers to the process of assigning given input values to one of several predefined classes based on relevant features within the data. A key goal of a classification network is to find a decision boundary that can separate discrete regions corresponding to each class. Decision boundaries may be simple, such as a straight line in a two-dimensional feature space, though complexer networks can approximate more profound boundaries if necessary. The exact process by which networks establish decision boundaries remains an open question in research. However, it is clear that networks learn features that support accurate classification. This learned decision boundary, developed during training, then becomes the basis for the network's classification of unseen data points. The classification process can be broken down into three main steps: first, the input data is passed through the input layer, where each neuron represents a feature of the data. Next, the network processes the data through the hidden layers, where relevant features are extracted. Finally, the processed data reaches the output layer, where the network assigns a class based on the neuron with the highest output value, providing the network's ultimate prediction.
 
-To achieve the correct class assignment, the network tries to find a hyperplane, a line in a two-dimensional space or a plane in higher dimensions, that best separates the data points into distinct classes (illustrated in Figure \ref{fig:hyperplane}). The decision boundary is typically a mathematical function in which the input features are weighted, summed, and passed through an activation function. If the output exceeds a certain threshold, the data point is classified as one class; otherwise, it is classified into another.
-
-However, when the data is not linearly separable, meaning a single straight line cannot separate the classes, the network uses multiple layers to create more complex non-linear decision boundaries. These non-linear boundaries are formed by stacking hidden layers and applying non-linear activation functions. Each layer learns progressively higher-level features of the data, allowing the network to model more complex patterns and therefore make more accurate decisions in classification tasks.
 
 \section{Methodology}
-In this section, we describe our approach to implementing dynamic target value optimization for neural network classification. First, we break down the concrete architecture of the target vectors used for training and classification. Then we describe two algorithms which will be used to generate and dynamically adjust these target vectors.
+In this section, we describe our approach to implementing dynamic target value optimization for neural network classification. First, we break down the concrete structure of the target vectors used for training and classification. Then we describe two algorithms which will be used to generate and dynamically adjust these target vectors.
 
-\subsection{Target Value Architecture}\label{sec:targets}
+\subsection{Target Value Structure}\label{sec:targets}
 
 To establish our methodology clearly, it is important to note that in this work, a \textit{class} is represented not by a single neuron but by a full target vector that encodes the network's idealized response to inputs from that class. This contrasts with the traditional view, where each class is tied to a unique output neuron. With this in mind, we first review the standard one-hot encoding approach before introducing our alternative target value structure.
 
