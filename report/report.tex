@@ -91,7 +91,7 @@ Correspondence to: \\
 \pagenumbering{arabic}  %Better if TOC is variable (more than one page)
 \setcounter{page}{1}
 
-\abstract{The aim of our project is to implement an alternative method of choosing target values for output neurons in classifying neural networks.  Instead of using traditional one-hot encoding, which uses fixed values of 0 and 1, this method involves assigning custom target values to each class. These target values are dynamically optimized during the training process, which distinguishes our approach from conventional fixed-target training. Our idea is to capture the model's predicted values and use these to adapt the target values. This approach requires a new rule for determining the predicted class: rather than choosing the neuron with the highest value, we select the neuron whose output value is closest to its corresponding target value and therefore has the lowest error, a method we will refer to as "minimum distance classification". To evaluate the performance of our approach, we will employ the MNIST dataset and compare with the one-hot encoding method.}
+\abstract{The aim of our project is to implement an alternative method of choosing target values for output neurons in classifying neural networks.  Instead of using traditional one-hot encoding, which uses fixed values of 0 and 1, this method involves assigning custom target values to each class. These target values are dynamically optimized during the training process, which distinguishes our approach from conventional fixed-target training. Our idea is to capture the model's predicted values and use these to adapt the target values. This approach requires a new rule for determining the predicted class: rather than choosing the class associated with the most activated output neuron, we select the class whose target vector is closer to the overall output vector of the network and therefore has the lowest error, a method we will refer to as "minimum distance classification". To evaluate the performance of our approach, we will employ the MNIST dataset and compare with the one-hot encoding method.}
 
 \vspace{4em}
 
@@ -100,14 +100,14 @@ Artificial neural networks (ANNs) have become essential tools in modern classifi
 
 Traditionally, the learning process of such networks is based on one-hot encoded output target values, where the correct class is represented by the value 1, and all others are assigned a 0. This binary approach became standard due to its simplicity and compatibility with widely used loss functions. However, enforcing these extreme target values could potentially lead to challenges depending on the neurons' activation function. It may negatively affect gradient flow, reduce training efficiency, and encourage overconfident predictions. \\
 
-One-hot encoding enforces a "winner-takes-all" (WTA) dynamic, where only the neuron with the highest output is deemed correct. Since the target vector consists of a 1 for the correct class and a 0 everywhere else, this is effectively equivalent to selecting the output that is closest to its respective target value. Thus, WTA can be considered to be a special case of a more general strategy, which is referred to as nearest target or minimum distance classification. Here, we make a general comparison between the entire output given by the network and the available target for each class. Whichever class' target the output is closest to, will be chosen as the correct class. \\
+One-hot encoding enforces a "winner-takes-all" (WTA) dynamic, where only the neuron with the highest output is deemed correct. Since the target vector consists of a 1 for the correct class and a 0 everywhere else, this is effectively equivalent to selecting the output that is closest to its respective target value. Thus, WTA can be considered to be a special case of a more general strategy, which is referred to as nearest target or minimum distance classification. Here, we make a general comparison between the entire output given by the network and the available target for each class. Whichever class' target the output is closest to will be chosen as the correct class. \\
 
-In this project, we propose a more flexible approach for target value assignment in classification networks. Instead of defining fixed values of 0 and 1, we generate target vectors composed of custom class and non-class values. Here, class values refer to the target values assigned to the positions which would ordinarily be filled with 1 in a one-hot vector, while the non-class values fill all other positions. These alternative targets are not chosen arbitrarily, but rather inferred from the model's own inherent output tendencies during training. Notably, this process is bidirectional. While the network's behavior influences the assignment of target values, these targets in turn influence the subsequent learning dynamics. By adapting target values dynamically in response to the network's evolving behavior, we thus establish a feedback loop that aligns the learning process more closely with the model's intrinsic predictions.\\
+In this project, we propose a more flexible approach for target value assignment in classification networks. Instead of defining fixed values of 0 and 1, we generate target vectors composed of custom class and non-class values. Here, class values refer to the target values assigned to the positions that would ordinarily be filled with 1 in a one-hot vector, while the non-class values fill all other positions. These alternative targets are not chosen arbitrarily but rather inferred from the model's own inherent output tendencies during training. Notably, this process is bidirectional. While the network's behavior influences the assignment of target values, these targets in turn influence the subsequent learning dynamics. By adapting target values dynamically in response to the network's evolving behavior, we thus establish a feedback loop that aligns the learning process more closely with the model's intrinsic predictions.\\
 
 This change calls for a rethinking of how predictions are interpreted. Rather than treating each neuron as directly representing a class, we consider the entire output vector and assign the prediction to the class whose target vector lies closest under a chosen distance metric. Our goal is to design an algorithm that leverages this strategy of dynamic target values and to evaluate its performance relative to existing approaches. 
 
 \section{Classification with Artificial Neural Networks}\label{sec:class}
-ANNs are computational models inspired by the functioning and structure of the human brain, designed to simulate the way biological neurons process information. These networks serve as a powerful tool in complex pattern recognition and play a fundamental role in solving machine learning problems.  In this section, we provide an overview of Artificial Neural Networks exploring their basic architecture and functionality, while also giving insight on their application in classification tasks.
+ANNs are computational models inspired by the functioning and structure of the human brain, designed to simulate the way biological neurons process information. These networks serve as a powerful tool in complex pattern recognition and play a fundamental role in solving machine learning problems.  In this section, we provide an overview of artificial neural networks, exploring their basic architecture and functionality while also providing insight into their application in classification tasks.
 
 \subsection{Structure of Artificial Neural Networks}
 
@@ -118,7 +118,7 @@ ANNs are computational models inspired by the functioning and structure of the h
     \label{fig:annStruct}
 \end{figure}
 
-An Artificial Neural Network consists of a multitude of interconnected nodes, or neurons, organized into layers. Each layer is designed to process input data and pass the resulting output signals to the following. To achieve this, each neuron receives one or more input values through connections to previous neurons, where each connection has an associated weight. The neuron then sums these weighted inputs together with a bias, and forwards the result through an activation function. Typically, a Neural Network is composed of three types of layers, as also visualized in Figure \ref{fig:annStruct}:
+An artificial neural network consists of a multitude of interconnected nodes, or neurons, organized into layers. Each layer is designed to process input data and pass the resulting output signals to the following. To achieve this, each neuron receives one or more input values through connections to previous neurons, where each connection has an associated weight. The neuron then sums these weighted inputs together with a bias and forwards the result through an activation function. Typically, a neural network is composed of three types of layers, as also visualized in Figure \ref{fig:annStruct}:
 
 \begin{itemize}
      \item \textbf{Input Layer:} The input layer is the first layer of the network and is responsible for receiving the raw input data. Each neuron in this layer represents a specific feature of the input. For example, in an image classification task, each input neuron may correspond to a single pixel of the given image.
@@ -126,14 +126,14 @@ An Artificial Neural Network consists of a multitude of interconnected nodes, or
      \item \textbf{Output Layer:} This concluding layer produces the network's final output. In a classification task, the output layer usually consists of one neuron per possible class, with each neuron's output representing the network's prediction for the corresponding class.
 \end{itemize}
 
-Neural network architectures can vary significantly, however, a common example is the Multi-Layer-Perceptron (MLP). Here, each neuron in a layer is connected to every neuron in the previous and the following layer, creating a fully connected, dense network. These connections are associated with weights that define both which neurons are linked and the strength of each connection and are adjusted during the training process.
+Neural network architectures can vary significantly; however, a common example is the Multi-Layer-Perceptron (MLP). Here, each neuron in a layer is connected to every neuron in the previous and the following layer, creating a fully connected, dense network. These connections are associated with weights that define both which neurons are linked and the strength of each connection and are adjusted during the training process.
 
 
 \subsection{Mechanism of a Neuron}
 The process by which a neuron works can be described by the following two steps:
  \begin{enumerate}
  \item \textbf{Aggregation Function:} Each neuron receives one or more input signals. Within input layers these signals correspond to raw data, whereas in the case of hidden layers they originate from the outputs of the previous layer. The corresponding weights and biases of the network's links determine how the signals are processed before serving as input to the neuron. The weights define the strength of the connection between two neurons and are modified accordingly during training (Section~\ref{sec:training_proc}). The bias is used to adjust the activation function to improve the learning process. 
-After recieving the input data, the aggregation function, which is used to calculate the weighted sum of the given inputs, is applied. The weighted sum, the input, $z$ of a neuron $i$ can be computed as follows, where $x_{i,j}$ denotes the input signals where $j$ indexes the neurons from the previous layer, $w$ the weights, and $b$ the bias: 
+After receiving the input data, the aggregation function, which is used to calculate the weighted sum of the given inputs, is applied. The weighted sum, the input, $z$ of a neuron $i$ can be computed as follows, where $x_{i,j}$ denotes the input signals where $j$ indexes the neurons from the previous layer, $w$ the weights, and $b$ the bias: 
 \begin{equation}
 $$z_i = \sum_{j=1}^n x_{i,j}* w_i +b_i$$
 \label{eq:weighted_sum}
@@ -286,7 +286,7 @@ All experiments use convolutional neural  networks (CNNs) , implemented in PyTor
  \subsection{Training Parameters}
  The training process is configured with the following hyperparameters:
  \begin{itemize}
-     \item \textbf{Epochs:} The number of training epochs is configurable but typically set to 4 for our experiments.
+     \item \textbf{Epochs:} The number of training epochs is configurable but typically set to 20 for our experiments.
      \item \textbf{Batch Size:} We use a batch size of 64 for training and 1000 for testing.
      \item \textbf{Optimizer:} Stochastic Gradient Descent (SGD) is used as the optimizer, with a learning rate of 0.01 and momentum of 0.5.
      \item \textbf{Loss Function:} The loss is calculated using the negative log likelihood loss (NLL) between the network's log softmax output and the target vectors.
@@ -302,7 +302,7 @@ All experiments use convolutional neural  networks (CNNs) , implemented in PyTor
  \end{enumerate}
 
  \subsection{Evaluation Metrics}
- The performance of each strategy is evaluated based on the following metrics, which are logged using Weights \& Biases:
+ The performance of each strategy is evaluated based on the following metrics:
  \begin{itemize}
      \item \textbf{Hard Accuracy:} Hard accuracy is defined as the percentage of correctly classified images. For standard one-hot targets, the predicted class is the output neuron with the highest activation. However, with Sigma Adaptation and the Base algorithm, this rule no longer applies. Instead, we treat the networks output as a vector and compute its Euclidean distance to each \textit{class's target vector} (see Section~\ref{sec:targets}.) The predicted class is taken to be the one whose target vector is closest to the output vector.
      \item \textbf{Test Loss:} The average NLL on the test set.
@@ -315,7 +315,7 @@ In this section, we examine how the proposed methods perform in practice and how
 
 \subsection{Performance Comparison}
 To compare the performance of these approaches, we examine accuracy over training time, focusing on both final performance and convergence speed.
-\begin{figure}
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.6\linewidth]{graphs/acc.png}
     \caption{Accuracy Over Time}
@@ -363,7 +363,7 @@ Figure~\ref{fig:loss} shows the development of training loss over the 20 epochs 
 The test loss of the one-hot and soft target approaches develop in line with their accuracy, showing a steep drop-off in the first few epochs, then slowly decreasing until the end of training. The loss in the dynamic target approaches decreases steadily throughout the entire training, without speeding up or slowing down significantly at any point.
 
 \subsection{Accuracy and Target Value Separation}
-In Figure~\ref{fig:accvsep} we compare the development of accuracy with the average distance between class and non-class values in between both dynamic target value approaches.
+In Figure~\ref{fig:accvsep} we compare the development of accuracy with the average distance between class and non-class values in both dynamic target value approaches.
 
 \begin{figure}[H]
     \centering
